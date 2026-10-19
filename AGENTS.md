@@ -54,7 +54,7 @@ Full setup details: [docs/setup.md](docs/setup.md).
   `.env` (git-ignored), never in tracked files or notebooks.
 - **Follow the [security policy](docs/security.md).** No pipe-to-shell, no
   `sudo`, no reading secret files, no destructive git without sign-off.
-  Enforced permissions for Claude Code live in `.claude/settings.json`. 
+  Enforced permissions for Claude Code live in `.claude/settings.json`.
 - **Keep data out of git.** Anything under `data/`, plus `.nc/.h5/.zarr/.parquet`
   outputs, is git-ignored by design. Don't force-add it.
 - **Notebooks:** clear outputs before committing where practical; heavy outputs
