@@ -13,3 +13,4 @@ Copy [`0000-template.md`](0000-template.md) to start a new record:
 | # | Date | Decision | Status |
 |---|------|----------|--------|
 | 0000 | — | _Template — not a real decision_ | — |
+| [0001](0001-scope-and-boundary.md) | 2026-10-19 | Scope: data preparation, not physics | Proposed |

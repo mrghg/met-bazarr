@@ -15,6 +15,7 @@
 │   ├── conventions.md
 │   ├── architecture.md
 │   ├── security.md
+│   ├── roadmap.md            # Task list: who needs what, and in what order
 │   └── decisions/            # Dated, immutable decision records (ADRs)
 │       ├── README.md         #   one-line index
 │       └── 0000-template.md
