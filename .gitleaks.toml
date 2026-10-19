@@ -1,0 +1,18 @@
+# Gitleaks configuration. https://github.com/gitleaks/gitleaks
+# Extends the built-in ruleset; add project-specific rules or allowlists below.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist"
+# Paths that never contain real secrets (example data, fixtures, lockfiles).
+paths = [
+    '''uv\.lock''',
+    '''(^|/)tests?/.*fixture''',
+]
+# Regexes for values that look secret-ish but are safe (placeholders, examples).
+regexes = [
+    '''(?i)your[_-]?(api[_-]?)?key[_-]?here''',
+    '''(?i)example[_-]?token''',
+    '''EXAMPLE[_A-Z0-9]+''',
+]

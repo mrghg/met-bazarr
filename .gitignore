@@ -1,0 +1,57 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.Python
+
+# ---- uv / virtualenv ----
+.venv/
+venv/
+# uv.lock SHOULD be committed for reproducibility — do not ignore it.
+
+# ---- Tooling caches ----
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# ---- Jupyter / editor ----
+*.ipynb_checkpoints
+.vscode/
+.idea/
+.DS_Store
+
+# ---- Data & outputs (keep large/raw data out of git) ----
+# Track the folder structure but not its contents (see data/.gitkeep).
+data/**
+!data/.gitkeep
+!data/README.md
+outputs/
+results/
+figures/
+*.nc
+*.h5
+*.hdf5
+*.zarr/
+*.parquet
+*.feather
+
+# ---- Secrets / local config ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- Logs ----
+*.log
+
+# ---- Session notes (ephemeral scratch; keep only the README) ----
+notes/**
+!notes/README.md
+
+# ---- Claude Code personal overrides (keep the shared settings.json tracked) ----
+.claude/settings.local.json

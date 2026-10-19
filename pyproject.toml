@@ -1,0 +1,81 @@
+[project]
+name = "project"
+version = "0.1.0"
+description = "A scientific computing project."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Matt Rigby" },
+]
+dependencies = [
+    # Add runtime dependencies here, or use: uv add <package>
+]
+
+[project.optional-dependencies]
+# Example: install the scientific stack with `uv sync --extra science`
+science = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "xarray",
+    "matplotlib",
+]
+
+[dependency-groups]
+# Dev tooling — installed by `uv sync`, excluded from published builds.
+dev = [
+    "ruff",
+    "pre-commit",
+    # Testing is not wired in by default. To add it:
+    #   uv add --dev pytest
+    # then create tests/ and uncomment the [tool.pytest.ini_options] block below.
+]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "project"
+module-root = "src"
+
+# ---------------------------------------------------------------------------
+# Ruff — linter + formatter. https://docs.astral.sh/ruff/
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# A pragmatic set for scientific code. Add/remove as suits the project.
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort (import sorting)
+    "UP",   # pyupgrade (modern syntax)
+    "B",    # flake8-bugbear (likely bugs)
+    "SIM",  # flake8-simplify
+    "NPY",  # NumPy-specific rules
+    "PD",   # pandas-vet
+]
+ignore = [
+    "E501",  # line length — handled by the formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Notebooks and exploratory scripts get more slack.
+"notebooks/*" = ["E402", "F401", "F811"]
+"scripts/*" = ["T20"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+# ---------------------------------------------------------------------------
+# pytest (optional — uncomment after `uv add --dev pytest` and creating tests/)
+# ---------------------------------------------------------------------------
+# [tool.pytest.ini_options]
+# testpaths = ["tests"]
+# addopts = "-ra"

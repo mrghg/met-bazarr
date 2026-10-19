@@ -1,0 +1,54 @@
+// Dev Container config. An open spec (https://containers.dev) — consumed by
+// VS Code "Reopen in Container", the `devcontainer` CLI, and CI alike.
+// See docs/containers.md for the full workflow (incl. OpenCode / SSH / data).
+{
+  "name": "project",
+  "build": { "dockerfile": "Dockerfile" },
+
+  // Mount the repo at /workspace inside the container.
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+
+  "remoteUser": "dev",
+
+  "mounts": [
+    // ---- External data (optional) --------------------------------------
+    // Your data lives OUTSIDE the repo (shared drive, big local folder)?
+    // Do NOT symlink — a host path dangles inside the container. Instead:
+    //   1. export LOCAL_DATA_DIR=/absolute/path/to/data   (e.g. in ~/.zshrc)
+    //   2. uncomment the line below (read-only: the agent can read, not corrupt)
+    // It backs data/ with the real bytes; leave commented to use the repo's data/.
+    // "source=${localEnv:LOCAL_DATA_DIR},target=/workspace/data,type=bind,readonly"
+  ],
+
+  "containerEnv": {
+    // Code reads DATA_DIR (default: the data/ folder). See src/project/config.py.
+    "DATA_DIR": "/workspace/data"
+  },
+
+  // Pass ONLY the specific secrets an agent needs — never the whole .env.
+  // These read from your host shell; any that are unset arrive empty.
+  "remoteEnv": {
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}",
+    "OPENAI_API_KEY": "${localEnv:OPENAI_API_KEY}"
+  },
+
+  // Build the environment once the container is created. safe.directory avoids
+  // git's "dubious ownership" warning on the bind-mounted workspace.
+  "postCreateCommand": "git config --global --add safe.directory /workspace && uv sync",
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["charliermarsh.ruff", "ms-python.python"],
+      "settings": {
+        "python.defaultInterpreterPath": "/home/dev/.venv/bin/python"
+      }
+    }
+  }
+
+  // ---- Locking down the network (optional, tighter) --------------------
+  // Network is open by default (uv needs it, and mid-run data fetches work).
+  // For a full lockdown once deps are installed, add:
+  //   "runArgs": ["--network=none"]
+  // Note: this also blocks the agent's own API calls, so use deliberately.
+}
