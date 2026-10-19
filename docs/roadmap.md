@@ -211,7 +211,13 @@ that version.
 
 - Bit-rounding that keeps a set number of mantissa bits per variable (for
   example with numcodecs' `BitRound`), before lossless compression.
-- Off by default; the setting is recorded in the store.
+- Off by default; the setting is recorded in the store, per variable.
+- Prior art: MPTRAC (Hoffmann et al., 2022,
+  doi:10.5194/gmd-15-2731-2022; current release v3.2) already reads
+  meteorology compressed with ZFP, ZSTD, SZ3, LZ4, a multiscale scheme and
+  netCDF quantisation, with a precision setting per variable (`met_type` and
+  the `met_*_prec` options in its `src/mptrac.h`). Look at its choices of
+  precision per variable before picking defaults here.
 
 **Acceptance.** Round-trip tests showing the expected precision; storage
 before and after on GLIDE's reference store. Whether GLIDE uses it is GLIDE's
