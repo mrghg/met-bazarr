@@ -12,8 +12,7 @@ Fresh project.
 
 ## Next actions
 <!-- The concrete next steps, most important first. -->
-- [ ] Rename the `src/project/` package (see docs/architecture.md).
-- [ ] Describe the project in `AGENTS.md` and `README.md`.
+- [ ] Describe the project in `AGENTS.md`.
 
 ## Open questions / blockers
 <!-- Anything undecided or waiting on someone. -->

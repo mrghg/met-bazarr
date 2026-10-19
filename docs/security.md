@@ -11,11 +11,9 @@ permission model.
 - It is **not containment.** Once `python` / `uv run` are allowed — which
   scientific work requires — an agent can do anything through the interpreter,
   and Bash pattern-matching (`rm -rf`) is bypassable (`rm -r -f`, subshells).
-- The **real boundary is OS-level isolation** — the **Dev Container**
-  ([containers.md](containers.md)). The rules below are defense-in-depth on top
-  of it, not a substitute. **This only holds when the agent runs *inside* the
-  container** — running it on the host against the mounted folder gives no
-  isolation at all.
+- The **real boundary is OS-level isolation**, which Claude Code's sandboxing
+  provides. The rules below are defense-in-depth on top of it, not a
+  substitute.
 
 The one enforced control that *is* a real boundary: **Read/Edit deny rules on
 secret files** (`.env`, `~/.ssh`, `~/.aws`). Those stop an agent pulling

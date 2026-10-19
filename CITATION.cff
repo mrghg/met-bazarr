@@ -1,9 +1,8 @@
 # Citation metadata. GitHub renders a "Cite this repository" button from this.
 # Spec: https://citation-file-format.github.io/
-# --- Fill in the TODOs when you seed a project from this template. ---
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "project"  # TODO: set to your project's name
+title: "metbazarr"
 type: software
 authors:
   - family-names: "Rigby"
@@ -13,5 +12,5 @@ authors:
   # - Add co-authors here.
 version: "0.1.0"
 # date-released: "2026-01-01"  # TODO: set on your first release
-repository-code: "https://github.com/mrghg/repo-template"  # TODO: update per project
+repository-code: "https://github.com/mrghg/met-bazarr"
 license: Apache-2.0

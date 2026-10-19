@@ -21,8 +21,9 @@ for why the docs are tiered this way.
 
 ## Project overview
 
-<!-- One paragraph: what this project does and who it's for. Replace this. -->
-A scientific computing project. Reusable code lives in `src/project/`; analysis
+Some atmospheric chemical transport models or model emulators are starting use compressed zarr stores to drive transport, rather than monolithic netCDF or GRIB files. This repository provides processing scripts that use the provider's clients to produce zarr stores. The contents, structure and chunking in the zarr store is determined by a schema specific to each target model.
+
+Reusable code lives in `src/metbazarr/`; analysis
 lives in `notebooks/` and `scripts/`; data lives in `data/` (git-ignored).
 
 ## Environment & commands
@@ -31,16 +32,16 @@ This project uses [uv](https://docs.astral.sh/uv/) for environment and
 dependency management. **Do not** call `pip` or edit `pyproject.toml`
 dependencies by hand — use `uv`.
 
-| Task | Command |
-|------|---------|
-| Install / sync the environment | `uv sync` |
-| Add a runtime dependency | `uv add <pkg>` |
-| Add a dev dependency | `uv add --dev <pkg>` |
-| Run a script | `uv run python scripts/<name>.py` |
-| Run a one-off command in the env | `uv run <cmd>` |
-| Lint (with autofix) | `uv run ruff check --fix .` |
-| Format | `uv run ruff format .` |
-| Run all pre-commit hooks | `uv run pre-commit run --all-files` |
+| Task                             | Command                             |
+| -------------------------------- | ----------------------------------- |
+| Install / sync the environment   | `uv sync`                           |
+| Add a runtime dependency         | `uv add <pkg>`                      |
+| Add a dev dependency             | `uv add --dev <pkg>`                |
+| Run a script                     | `uv run python scripts/<name>.py`   |
+| Run a one-off command in the env | `uv run <cmd>`                      |
+| Lint (with autofix)              | `uv run ruff check --fix .`         |
+| Format                           | `uv run ruff format .`              |
+| Run all pre-commit hooks         | `uv run pre-commit run --all-files` |
 
 Full setup details: [docs/setup.md](docs/setup.md).
 
@@ -53,8 +54,7 @@ Full setup details: [docs/setup.md](docs/setup.md).
   `.env` (git-ignored), never in tracked files or notebooks.
 - **Follow the [security policy](docs/security.md).** No pipe-to-shell, no
   `sudo`, no reading secret files, no destructive git without sign-off.
-  Enforced permissions for Claude Code live in `.claude/settings.json`. For
-  isolated runs, work inside the [dev container](docs/containers.md).
+  Enforced permissions for Claude Code live in `.claude/settings.json`. 
 - **Keep data out of git.** Anything under `data/`, plus `.nc/.h5/.zarr/.parquet`
   outputs, is git-ignored by design. Don't force-add it.
 - **Notebooks:** clear outputs before committing where practical; heavy outputs

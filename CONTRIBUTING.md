@@ -11,8 +11,7 @@ uv sync                      # create the env + install everything
 uv run pre-commit install    # install git hooks (once per clone)
 ```
 
-Details, including optional dev-container isolation:
-[docs/setup.md](docs/setup.md) and [docs/containers.md](docs/containers.md).
+Details: [docs/setup.md](docs/setup.md).
 
 ## Making a change
 

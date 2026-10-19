@@ -7,26 +7,21 @@
 ├── CLAUDE.md                 # Pointer → AGENTS.md
 ├── .github/
 │   └── copilot-instructions.md  # Pointer → AGENTS.md
-├── .devcontainer/            # Dev Container: isolated box for agents + code
-│   ├── devcontainer.json
-│   └── Dockerfile
 ├── .claude/
 │   └── settings.json         # Claude Code permission allow/ask/deny lists
-├── Makefile                  # Dev-container convenience commands (no VS Code needed)
 ├── docs/                     # Modular docs referenced from AGENTS.md
 │   ├── agents.md
 │   ├── setup.md
 │   ├── conventions.md
 │   ├── architecture.md
 │   ├── security.md
-│   ├── containers.md
 │   └── decisions/            # Dated, immutable decision records (ADRs)
 │       ├── README.md         #   one-line index
 │       └── 0000-template.md
 ├── notes/                    # Ephemeral per-session scratch (git-ignored)
 │   └── README.md
 ├── src/
-│   └── project/              # Importable package (rename this!)
+│   └── metbazarr/            # Importable package
 │       └── __init__.py
 ├── scripts/                  # Runnable analysis entry points
 ├── notebooks/                # Exploratory Jupyter notebooks
@@ -57,27 +52,13 @@ stays small and the prompt cache stays warm:
 
 ## The `src/` layout
 
-Code you want to import and reuse goes in `src/project/`. The `src/` layout
+Code you want to import and reuse goes in `src/metbazarr/`. The `src/` layout
 means the package is only importable after it's installed into the environment
 (`uv sync` does this in editable mode), which prevents "works because I'm in the
 right directory" bugs.
-
-**Rename `project`** to something meaningful for your work:
-1. `git mv src/project src/your_name`
-2. Update `name` in `pyproject.toml` and `module-name` under
-   `[tool.uv.build-backend]`.
-3. `uv sync`.
 
 ## Data
 
 `data/` is git-ignored (except its `README.md` and `.gitkeep`). Document where
 the real data comes from in `data/README.md` — a path on shared storage, a DOI,
 a download script — so the repo stays reproducible without shipping the bytes.
-
-## Running in a container
-
-A **Dev Container** (`.devcontainer/`) isolates agents and code from your host —
-the real security boundary that the permission allow-list ([security.md](security.md))
-sits on top of. It also doubles as a reproducible environment. Full workflow
-(VS Code, OpenCode/CLI agents, SSH, pointing `data/` at external files):
-[containers.md](containers.md).

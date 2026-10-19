@@ -31,12 +31,12 @@
 ## Notebooks
 
 - Keep notebooks for exploration and narrative; move reusable logic into
-  `src/project/` and import it.
+  `src/metbazarr/` and import it.
 - Clear heavy outputs before committing.
 
 ## Project layout rules
 
-- Importable, tested logic → `src/project/`.
+- Importable, tested logic → `src/metbazarr/`.
 - Runnable analysis entry points → `scripts/`.
 - Exploration → `notebooks/`.
 - Raw/large data → `data/` (git-ignored).
