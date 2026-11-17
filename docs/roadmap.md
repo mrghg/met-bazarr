@@ -238,6 +238,14 @@ the team and the GATES maintainer before any work starts.
 **Acceptance.** For one domain and year, a store that matches the existing
 GATES store for the same period, variable by variable.
 
+**Done for GLIDE ahead of the rest (GLIDE task B14, 2026-11-17).** The global
+UM in NAME's met archive (`UMG_Mk10PT`) to the `glide` format, for GLIDE's
+Tier 2 comparison with NAME: `src/metbazarr/sources/um.py`, recipes in
+`recipes/um/`, conversion agreed in
+[decision 0003](decisions/0003-um-to-glide-conversion.md). It brought in
+the M0 and M1 pieces it needed (recipe, `metbazarr build` / `validate`, the
+`glide` writer and validator, provenance, synthetic tests).
+
 ---
 
 ## 4. Order

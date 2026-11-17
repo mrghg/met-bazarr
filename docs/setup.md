@@ -41,14 +41,43 @@ Pinned in `.python-version` and constrained by `requires-python` in
 Copy `.env.example` to `.env` and fill in local credentials. `.env` is
 git-ignored; gitleaks will block commits that contain secrets.
 
-## Adding testing (optional)
-
-Not wired in by default. To enable pytest:
+## Tests
 
 ```bash
-uv add --dev pytest
-mkdir tests
+uv sync --extra um            # iris, for the UM tests
+uv run pytest
 ```
 
-Then uncomment the `[tool.pytest.ini_options]` block in `pyproject.toml` and run
-`uv run pytest`.
+The tests use small synthetic inputs only: never real (or licensed) data. The
+UM tests write synthetic PP files, which need iris but not `mo_pack`; they are
+skipped if iris is missing.
+
+## Met Office UM on JASMIN
+
+Reading the Met Office's WGDOS-packed PP files needs `iris` **and** `mo_pack`.
+`mo_pack` is published on conda-forge only, so `uv` cannot install it. On
+JASMIN, build a second environment on JASMIN's `jaspy` Python, which has
+`mo_pack`, and let `uv` install everything else into it:
+
+```bash
+JP=/apps/jasmin/jaspy/miniforge_envs/jaspy3.12/mf3-25.3.0-3/envs/jasml3.12-mf3-25.3.0-3-v20261105/bin/python
+uv venv --python "$JP" --system-site-packages .venv-jaspy
+UV_PROJECT_ENVIRONMENT=.venv-jaspy uv sync --python "$JP" --extra um
+.venv-jaspy/bin/metbazarr --help
+```
+
+`--python` matters: without it `uv sync` follows `.python-version` and
+replaces the environment with one that cannot see `mo_pack`. Reading the NAME
+met archive needs membership of the `gws_name` group.
+
+Build a store from a recipe (`recipes/`), interactively or as a LOTUS2 job:
+
+```bash
+.venv-jaspy/bin/metbazarr build recipes/um/EUR-day-20190108.yaml --step plan
+.venv-jaspy/bin/metbazarr build recipes/um/EUR-day-20190108.yaml
+sbatch --account=<account> scripts/lotus/build_store.sbatch recipes/um/EUR-Jan.yaml
+.venv-jaspy/bin/python scripts/check_um_store.py recipes/um/EUR-day-20190108.yaml --times 0 4
+```
+
+Met Office data, and anything derived from it, never goes into the
+repository, a test or an issue.
