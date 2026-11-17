@@ -1,7 +1,7 @@
 [project]
 name = "metbazarr"
 version = "0.1.0"
-description = "A scientific computing project."
+description = "Prepare meteorology as compressed Zarr stores for atmospheric transport models."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
@@ -10,7 +10,13 @@ authors = [
     { name = "Matt Rigby" },
 ]
 dependencies = [
+    "dask>=2026.8.0",
+    "numcodecs>=0.16.6",
     # Add runtime dependencies here, or use: uv add <package>
+    "numpy>=2.4.6",
+    "pyyaml>=6.0.3",
+    "xarray>=2026.7.0",
+    "zarr>=3",
 ]
 
 [project.optional-dependencies]
@@ -22,15 +28,21 @@ science = [
     "xarray",
     "matplotlib",
 ]
+# Met Office UM files. WGDOS-packed files also need mo_pack, which is on
+# conda-forge only: see docs/setup.md ("Met Office UM on JASMIN").
+um = [
+    "scitools-iris>=3.14.1",
+]
+
+[project.scripts]
+metbazarr = "metbazarr.cli:main"
 
 [dependency-groups]
 # Dev tooling — installed by `uv sync`, excluded from published builds.
 dev = [
     "ruff",
     "pre-commit",
-    # Testing is not wired in by default. To add it:
-    #   uv add --dev pytest
-    # then create tests/ and uncomment the [tool.pytest.ini_options] block below.
+    "pytest>=9.2.0",
 ]
 
 [build-system]
@@ -74,8 +86,8 @@ ignore = [
 docstring-code-format = true
 
 # ---------------------------------------------------------------------------
-# pytest (optional — uncomment after `uv add --dev pytest` and creating tests/)
+# pytest
 # ---------------------------------------------------------------------------
-# [tool.pytest.ini_options]
-# testpaths = ["tests"]
-# addopts = "-ra"
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
