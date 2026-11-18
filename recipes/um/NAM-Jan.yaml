@@ -1,7 +1,7 @@
 # GLIDE task B14: Met Office global UM (NAME's UMG_Mk10PT) for the NAM domain.
 # Domain box: GLIDE docs/reference-runs.md §2. Conversion: decision 0003.
 format: glide
-output: /work/scratch-pw5/{user}/met-bazarr/NAM-Jan_UMG_Mk10PT.zarr
+output: /work/scratch-pw5/{user}/met-bazarr/NAM_20181222-20190115_UMG-Mk10.zarr
 domain: {name: NAM, lon_min: -120, lon_max: -55, lat_min: 22, lat_max: 58}
 period: {start: "2018-12-22T00:00", end: "2019-01-15T00:00"}
 source:

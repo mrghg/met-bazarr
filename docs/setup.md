@@ -79,5 +79,9 @@ sbatch --account=<account> scripts/lotus/build_store.sbatch recipes/um/EUR-Jan.y
 .venv-jaspy/bin/python scripts/check_um_store.py recipes/um/EUR-day-20190108.yaml --times 0 4
 ```
 
+UM stores are named `<DOMAIN>_<start YYYYMMDD>-<end YYYYMMDD>_UMG-Mk10.zarr`,
+where the dates are those of the first and last times in the store, e.g.
+`EUR_20181222-20190115_UMG-Mk10.zarr`.
+
 Met Office data, and anything derived from it, never goes into the
 repository, a test or an issue.

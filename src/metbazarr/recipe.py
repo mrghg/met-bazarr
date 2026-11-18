@@ -3,7 +3,7 @@
 Example (``recipes/um/EUR-Jan.yaml``)::
 
     format: glide
-    output: /work/scratch-pw5/USER/met-bazarr/EUR-Jan_UMG_Mk10PT.zarr
+    output: /work/scratch-pw5/USER/met-bazarr/EUR_20181222-20190115_UMG-Mk10.zarr
     domain: {name: EUR, lon_min: -30, lon_max: 40, lat_min: 32, lat_max: 72}
     period: {start: 2018-12-22T00:00, end: 2019-01-15T00:00}
     source:
