@@ -55,3 +55,6 @@ notes/**
 
 # ---- Claude Code personal overrides (keep the shared settings.json tracked) ----
 .claude/settings.local.json
+
+# ---- uv environment built on JASMIN jaspy (see docs/setup.md) ----
+.venv-*/

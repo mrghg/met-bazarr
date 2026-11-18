@@ -23,8 +23,15 @@
 │   └── README.md
 ├── src/
 │   └── metbazarr/            # Importable package
-│       └── __init__.py
-├── scripts/                  # Runnable analysis entry points
+│       ├── cli.py            #   `metbazarr build` / `metbazarr validate`
+│       ├── recipe.py         #   YAML recipe -> Recipe
+│       ├── build.py          #   create / fill / finish a store
+│       ├── provenance.py     #   version, commit, time
+│       ├── formats/          #   one module per output format (glide.py)
+│       └── sources/          #   one module per source (um.py)
+├── scripts/                  # Runnable entry points (check_um_store.py; lotus/ job scripts)
+├── recipes/                  # One YAML file per store (recipes/um/ for the Met Office UM)
+├── tests/                    # pytest, on synthetic data only
 ├── notebooks/                # Exploratory Jupyter notebooks
 ├── data/                     # Raw/large data (git-ignored)
 │   └── README.md
