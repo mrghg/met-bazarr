@@ -20,7 +20,7 @@ Scope: [decision 0001](docs/decisions/0001-scope-and-boundary.md); task list:
 Matt: [decision 0003](docs/decisions/0003-um-to-glide-conversion.md).
 Trial EUR-Jan store built 2026-11-17 (LOTUS job 2607290, untagged commit
 d4e9b63, **not a validation input**):
-`/work/scratch-pw5/mattrigby/met-bazarr/EUR-Jan_UMG_Mk10PT.zarr`, 193 times,
+`/work/scratch-pw5/mattrigby/met-bazarr/EUR_20181222-20190115_UMG-Mk10.zarr`, 193 times,
 28 GB, 1 h 36 min on one CPU, 2.8 GB peak; validator PASS with full scan;
 `scripts/check_um_store.py` at two times: native fields bit-identical, winds
 within their source values, GLIDE pressure rebuild within 0.57 hPa of the UM's.
