@@ -10,6 +10,8 @@ What lives here:
 - the variable table (names, dimensions, accepted units);
 - the store attributes (format tag and provenance);
 - encoding and chunking for writing;
+- :func:`fill_isolated_missing`, the page's fill rule for isolated missing
+  source values (recorded in ``glide_filled_values``);
 - :func:`validate`, which checks a store against everything the page
   prescribes, plus plausibility checks that catch the silent mistakes the page
   warns about (geopotential height for geopotential, heat flux with the wrong
@@ -18,6 +20,7 @@ What lives here:
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -28,7 +31,7 @@ FORMAT_NAME = "glide"
 FORMAT_VERSION = "1.0"
 #: GLIDE commit whose ``docs/met_schema.md`` defines format 1.0 (branch
 #: ``docs/met-schema-v1``, PR #23).
-GLIDE_SCHEMA_COMMIT = "8f4aa9957a209e43ea1be6fd0222f0ab1a358863"
+GLIDE_SCHEMA_COMMIT = "e3df2e3e9b8170518fa0d3595d8f6990ef4e6a41"
 
 # Physical constants, identical to GLIDE's (src/lpdm/met_reader.py,
 # src/lpdm/vertical_grid.py), so derived fields are consistent with how GLIDE
@@ -375,6 +378,9 @@ def validate(
     if report.errors:
         return report
 
+    # --- documented fills -------------------------------------------------
+    _check_filled(ds, lev, report)
+
     # --- physical plausibility on a sample of times -----------------------
     _check_physics(ds, lev, vcoord, report)
 
@@ -481,6 +487,282 @@ def _check_physics(
         warn("heat-flux magnitudes too small in the sampled times to check the sign")
     if float(np.nanmax(np.abs(vals))) > 2000.0:
         err("surface_sensible_heat_flux exceeds 2000 W m**-2 (GLIDE rejects this)")
+
+
+# ---------------------------------------------------------------------------
+# Isolated missing source values (format 1.0, "Validation inputs")
+# ---------------------------------------------------------------------------
+
+FILLED_VALUES_ATTR = "glide_filled_values"
+#: At most this many filled values per variable per store.
+MAX_FILLED_PER_VARIABLE = 10
+#: Never filled: a missing value here stops the conversion.
+NEVER_FILLED = (GEOPOTENTIAL, SURFACE_GEOPOTENTIAL)
+_FILL_KEYS = ("variable", "time", "latitude", "longitude", "before", "after", "filled")
+FILL_PROCESSING = (
+    "Isolated missing values filled by the GLIDE met format 1.0 rule: a single "
+    "timestep with finite values at the same cell either side, at most "
+    f"{MAX_FILLED_PER_VARIABLE} per variable, set to the mean of the values at the "
+    f"timesteps before and after; each listed in {FILLED_VALUES_ATTR}."
+)
+
+
+class FillError(RuntimeError):
+    """Missing values the fill rule does not allow to be filled."""
+
+
+def _iso(t: np.datetime64) -> str:
+    return np.datetime_as_string(t, unit="s") + "Z"
+
+
+def _fill_mean(before: float, after: float) -> np.float32:
+    return np.float32((np.float64(before) + np.float64(after)) / 2.0)
+
+
+def _fill_key(entry: dict) -> tuple:
+    return (
+        entry["variable"],
+        entry["time"],
+        entry["latitude"],
+        entry["longitude"],
+        entry.get("level"),
+    )
+
+
+def _time_varying(ds: xr.Dataset) -> list[str]:
+    return [n for n in REQUIRED if TIME in ds[n].dims and n not in NEVER_FILLED]
+
+
+def fill_isolated_missing(path: str | Path) -> list[dict]:
+    """Apply the format's fill rule to every non-finite value in a store.
+
+    A non-finite value in a time-varying variable is filled when the same cell
+    (and level) is finite at the timesteps immediately before and after it,
+    and the variable has no more than :data:`MAX_FILLED_PER_VARIABLE` such
+    values. It becomes the mean of those two values, and is listed in the store
+    attribute ``glide_filled_values``; ``processing`` notes the fill.
+
+    Anything else (a gap at the first or last time, a gap longer than one
+    timestep, too many values, a missing value in the geopotential) raises
+    :class:`FillError` listing every case, and nothing is written.
+
+    Returns:
+        The entries added to ``glide_filled_values`` (empty if nothing was
+        missing).
+    """
+    import zarr
+
+    ds = xr.open_zarr(path, consolidated=True)
+    lev = _vertical_dim(ds)
+    times = ds[TIME].values
+    nt = times.size
+    problems: list[str] = []
+    for name in NEVER_FILLED:
+        n_bad = int((~np.isfinite(ds[name].data)).sum())
+        if n_bad:
+            problems.append(f"{name}: {n_bad} non-finite values (never filled)")
+
+    # variable -> time index -> (array for that time, [(cell index, entry)])
+    plan: dict[str, dict[int, tuple[np.ndarray, list]]] = {}
+    for name in _time_varying(ds):
+        da = ds[name]
+        other = tuple(range(1, da.ndim))
+        per_time = np.asarray((~np.isfinite(da.data)).sum(axis=other))
+        if hasattr(per_time, "compute"):
+            per_time = per_time.compute()
+        bad_times = np.flatnonzero(per_time)
+        total = int(per_time.sum())
+        if total == 0:
+            continue
+        if total > MAX_FILLED_PER_VARIABLE:
+            problems.append(
+                f"{name}: {total} non-finite values, more than the "
+                f"{MAX_FILLED_PER_VARIABLE} the fill rule allows "
+                f"(at {', '.join(_iso(times[t]) for t in bad_times[:5])}"
+                f"{' ...' if bad_times.size > 5 else ''})"
+            )
+            continue
+        for t in bad_times:
+            t = int(t)
+            here = da.isel({TIME: t}).values
+            cells = np.argwhere(~np.isfinite(here))
+            if t == 0 or t == nt - 1:
+                problems.append(
+                    f"{name}: {len(cells)} non-finite values at the "
+                    f"{'first' if t == 0 else 'last'} time {_iso(times[t])}"
+                )
+                continue
+            before_all = da.isel({TIME: t - 1}).values
+            after_all = da.isel({TIME: t + 1}).values
+            fills = []
+            for cell in map(tuple, cells):
+                before, after = before_all[cell], after_all[cell]
+                where = _describe_cell(ds, da, lev, cell)
+                if not (np.isfinite(before) and np.isfinite(after)):
+                    problems.append(
+                        f"{name} at {_iso(times[t])}, {where}: not finite at the "
+                        "neighbouring timestep too (a gap longer than one timestep)"
+                    )
+                    continue
+                filled = _fill_mean(before, after)
+                entry = {"variable": name, "time": _iso(times[t])}
+                entry.update(_cell_coords(ds, da, lev, cell))
+                entry.update(
+                    before=float(before), after=float(after), filled=float(filled)
+                )
+                fills.append((cell, entry))
+            if fills:
+                here = here.copy()
+                for cell, entry in fills:
+                    here[cell] = entry["filled"]
+                plan.setdefault(name, {})[t] = (here, fills)
+
+    if problems:
+        raise FillError(
+            "missing values the GLIDE format 1.0 fill rule does not allow to be "
+            "filled; fetch them from the original archive or report the case:\n  "
+            + "\n  ".join(problems)
+        )
+    added = [
+        e for per_t in plan.values() for _, fills in per_t.values() for _, e in fills
+    ]
+    if not added:
+        return []
+
+    for name, per_t in plan.items():
+        dims = ds[name].dims
+        for t, (arr, _) in per_t.items():
+            xr.Dataset({name: (dims, arr[None])}).to_zarr(
+                path, region={TIME: slice(t, t + 1)}, mode="r+"
+            )
+
+    group = zarr.open_group(str(path), mode="r+")
+    previous = json.loads(group.attrs.get(FILLED_VALUES_ATTR, "[]"))
+    merged = {_fill_key(e): e for e in previous}
+    merged.update({_fill_key(e): e for e in added})
+    entries = sorted(merged.values(), key=lambda e: (e["variable"], e["time"]))
+    attrs = {FILLED_VALUES_ATTR: json.dumps(entries)}
+    processing = str(group.attrs.get("processing", ""))
+    if FILLED_VALUES_ATTR not in processing:
+        step = processing.count(" | ") + 2 if processing else 1
+        attrs["processing"] = (
+            f"{processing} | ({step}) {FILL_PROCESSING}"
+            if processing
+            else f"({step}) {FILL_PROCESSING}"
+        )
+    group.attrs.update(attrs)
+    zarr.consolidate_metadata(str(path))
+    return added
+
+
+def _cell_coords(ds: xr.Dataset, da: xr.DataArray, lev: str | None, cell) -> dict:
+    """Coordinates of one cell of one time slice of ``da``."""
+    pos = dict(zip(da.dims[1:], cell, strict=True))
+    out = {
+        "latitude": float(ds[LAT].values[pos[LAT]]),
+        "longitude": float(ds[LON].values[pos[LON]]),
+    }
+    if lev is not None and lev in pos:
+        level = ds[lev].values[pos[lev]]
+        out["level"] = (
+            int(level)
+            if np.issubdtype(np.asarray(level).dtype, np.integer)
+            else float(level)
+        )
+    return out
+
+
+def _describe_cell(ds, da, lev, cell) -> str:
+    c = _cell_coords(ds, da, lev, cell)
+    where = f"{c['latitude']:.4f} N, {c['longitude']:.4f} E"
+    return where + (f", level {c['level']}" if "level" in c else "")
+
+
+def _check_filled(ds: xr.Dataset, lev: str, report: ValidationReport) -> None:
+    """Check ``glide_filled_values`` against the rule and the stored values."""
+    err = report.errors.append
+    raw = ds.attrs.get(FILLED_VALUES_ATTR)
+    if raw is None:
+        return
+    try:
+        entries = json.loads(raw) if isinstance(raw, str) else raw
+    except json.JSONDecodeError as exc:
+        err(f"{FILLED_VALUES_ATTR} is not valid JSON: {exc}")
+        return
+    if not isinstance(entries, list) or not all(isinstance(e, dict) for e in entries):
+        err(f"{FILLED_VALUES_ATTR} must be a JSON list of objects")
+        return
+    if not entries:
+        err(
+            f"{FILLED_VALUES_ATTR} is present but empty (omit it if nothing was filled)"
+        )
+        return
+    if FILLED_VALUES_ATTR not in str(ds.attrs.get("processing", "")):
+        err(f"processing does not note the fill listed in {FILLED_VALUES_ATTR}")
+
+    times = ds[TIME].values
+    lat, lon = ds[LAT].values, ds[LON].values
+    fillable = _time_varying(ds)
+    counts: dict[str, int] = {}
+    seen: set = set()
+    for k, e in enumerate(entries):
+        tag = f"{FILLED_VALUES_ATTR}[{k}]"
+        name = e.get("variable")
+        if name not in fillable:
+            err(f"{tag}: variable {name!r} may not be filled")
+            continue
+        three_d = lev in ds[name].dims
+        keys = set(_FILL_KEYS) | ({"level"} if three_d else set())
+        if set(e) != keys:
+            err(f"{tag}: keys {sorted(e)}, expected {sorted(keys)}")
+            continue
+        key = _fill_key(e)
+        if key in seen:
+            err(f"{tag}: listed twice")
+            continue
+        seen.add(key)
+        counts[name] = counts.get(name, 0) + 1
+        try:
+            t = int(np.flatnonzero(times == np.datetime64(e["time"].rstrip("Z")))[0])
+            j = int(np.flatnonzero(np.isclose(lat, float(e["latitude"]), atol=1e-6))[0])
+            i = int(
+                np.flatnonzero(np.isclose(lon, float(e["longitude"]), atol=1e-6))[0]
+            )
+            pos = {LAT: j, LON: i}
+            if three_d:
+                pos[lev] = int(np.flatnonzero(ds[lev].values == e["level"])[0])
+        except (AttributeError, IndexError, ValueError, TypeError):
+            err(f"{tag}: time, latitude, longitude or level not in the store")
+            continue
+        if t == 0 or t == times.size - 1:
+            err(f"{tag}: at the first or last time, which may not be filled")
+            continue
+        vals = (
+            ds[name].isel({TIME: slice(t - 1, t + 2), **pos}).values.astype(np.float32)
+        )
+        before, filled, after = (
+            np.float32(e[x]) for x in ("before", "filled", "after")
+        )
+        if not np.array_equal(
+            vals, np.array([before, filled, after], dtype=np.float32)
+        ):
+            err(
+                f"{tag}: stored values at the times before, at and after "
+                f"{e['time']} differ from the attribute"
+            )
+        elif filled != _fill_mean(before, after):
+            err(f"{tag}: filled value is not the mean of before and after")
+    for name, n in counts.items():
+        if n > MAX_FILLED_PER_VARIABLE:
+            err(
+                f"{name}: {n} filled values, more than the {MAX_FILLED_PER_VARIABLE} "
+                "the fill rule allows"
+            )
+    report.info.append(
+        f"{len(entries)} filled values ("
+        + ", ".join(f"{n} {v}" for v, n in sorted(counts.items()))
+        + ")"
+    )
 
 
 def store_attrs(

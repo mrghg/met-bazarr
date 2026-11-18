@@ -233,3 +233,64 @@ def test_cli_validate(tmp_path, archive, capsys):
     assert main(["build", str(recipe.path)]) == 0
     assert main(["validate", "--format", "glide", str(recipe.output)]) == 0
     assert "PASS" in capsys.readouterr().out
+
+
+# --- isolated missing source values (format 1.0 fill rule) -------------------
+
+# Global indices on each field's own grid. Row 35 is in the overlap of
+# partitions 1 and 2, so the missing value is in both files.
+PLANTED = (
+    (1, "shf", None, 35, 2),  # one value
+    (2, "t", 3, 30, 1),  # one value, theta level 4
+    (2, "u", 4, 30, 1),  # rho level 5, u point between scalar columns 0 and 1
+)
+
+
+def test_isolated_missing_values_are_filled(tmp_path):
+    arch = syn.write_archive(tmp_path / "holes", TIMES, missing=PLANTED)
+    recipe = write_recipe(tmp_path, arch, BOX_A)
+    ds = build_store(recipe)
+    import json
+
+    entries = json.loads(ds.attrs[glide.FILLED_VALUES_ATTR])
+    by_var = {}
+    for e in entries:
+        by_var.setdefault(e["variable"], []).append(e)
+    # u from rho level 5 at one u point reaches 2 scalar columns x theta 4, 5.
+    assert {k: len(v) for k, v in by_var.items()} == {
+        "surface_sensible_heat_flux": 1,
+        "temperature": 1,
+        "u_component_of_wind": 4,
+    }
+    assert sorted({e["level"] for e in by_var["u_component_of_wind"]}) == [4, 5]
+    assert by_var["temperature"][0]["level"] == 4
+    assert by_var["surface_sensible_heat_flux"][0]["time"] == "2019-01-08T03:00:00Z"
+    assert glide.FILL_PROCESSING in ds.attrs["processing"]
+    # The synthetic fields are linear in time, so the filled values equal the
+    # analytic ones: the whole store still matches.
+    lat, lon = expected_crop(BOX_A)
+    for k in range(len(TIMES)):
+        for name, want in expected_fields(lat, lon, k).items():
+            got = ds[name].isel(time=k) if "time" in ds[name].dims else ds[name]
+            np.testing.assert_allclose(got.values, want, rtol=2e-6, atol=2e-6)
+
+
+def test_too_many_missing_values_stop_the_fill_step(tmp_path):
+    many = tuple((0, "ps", None, 30, c) for c in range(11))
+    arch = syn.write_archive(tmp_path / "many", TIMES[:1], missing=many)
+    recipe = write_recipe(tmp_path, arch, BOX_A, times=TIMES[:1])
+    build.create(recipe)
+    with pytest.raises(um.UMError, match="11 missing values, more than the 10"):
+        build.fill(recipe)
+
+
+def test_missing_value_at_the_first_time_stops_finish(tmp_path):
+    arch = syn.write_archive(
+        tmp_path / "first", TIMES[:2], missing=((0, "blh", None, 30, 1),)
+    )
+    recipe = write_recipe(tmp_path, arch, BOX_A, times=TIMES[:2])
+    build.create(recipe)
+    build.fill(recipe)
+    assert build.missing_times(recipe) == []
+    with pytest.raises(glide.FillError, match="at the first time"):
+        build.finish(recipe)

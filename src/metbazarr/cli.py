@@ -47,9 +47,15 @@ def cmd_build(args: argparse.Namespace) -> int:
             indices = _time_range(args.times, n)
         build.fill(recipe, indices, allow_commit_mismatch=args.allow_commit_mismatch)
     if args.step in ("finish", "all"):
-        report = build.finish(
-            recipe, full_scan=not args.quick, validation_input=args.validation_input
-        )
+        from metbazarr.formats.glide import FillError
+
+        try:
+            report = build.finish(
+                recipe, full_scan=not args.quick, validation_input=args.validation_input
+            )
+        except FillError as exc:
+            print(f"FAIL: {exc}")
+            return 1
         print(report.format())
         return 0 if report.ok else 1
     return 0
@@ -81,7 +87,8 @@ def main(argv: list[str] | None = None) -> int:
         choices=("plan", "create", "fill", "finish", "all"),
         default="all",
         help="plan: show what the recipe resolves to; create: write the empty store; "
-        "fill: convert times; finish: check and validate (default: all)",
+        "fill: convert times; finish: check every time is written, fill isolated "
+        "missing values by the format's rule, validate (default: all)",
     )
     b.add_argument("--times", help="time indices to fill, START:STOP (default: all)")
     b.add_argument(

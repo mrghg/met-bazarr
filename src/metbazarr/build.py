@@ -273,19 +273,30 @@ def fill(
 
 
 def missing_times(recipe: Recipe) -> list[int]:
-    """Indices of times not yet written (surface pressure still NaN)."""
+    """Indices of times not yet written (surface pressure NaN everywhere; a
+    written time holds at most a few missing source values)."""
     ds = xr.open_zarr(recipe.output, consolidated=True)
     ps = ds["surface_pressure"]
-    bad = np.isnan(ps).any(dim=(glide.LAT, glide.LON)).compute().values
+    bad = np.isnan(ps).all(dim=(glide.LAT, glide.LON)).compute().values
     return [int(i) for i in np.flatnonzero(bad)]
 
 
 def finish(recipe: Recipe, *, full_scan: bool = True, validation_input: bool = False):
-    """Check every time was written, then validate the store."""
+    """Check every time was written, apply the format's fill rule to isolated
+    missing source values (or stop, listing them), then validate the store."""
     missing = missing_times(recipe)
     if missing:
         raise RuntimeError(
             f"{len(missing)} times not written, e.g. indices {missing[:10]}"
+        )
+    filled = glide.fill_isolated_missing(recipe.output)
+    for e in filled:
+        level = f", level {e['level']}" if "level" in e else ""
+        print(
+            f"[finish] filled {e['variable']} at {e['time']}, "
+            f"{e['latitude']:.4f} N, {e['longitude']:.4f} E{level}: "
+            f"{e['before']:g}, [{e['filled']:g}], {e['after']:g}",
+            flush=True,
         )
     return glide.validate(
         recipe.output, full_scan=full_scan, validation_input=validation_input

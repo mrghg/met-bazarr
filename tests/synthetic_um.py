@@ -174,10 +174,28 @@ class SyntheticArchive:
     times: list[dt.datetime]
 
 
+def _punch(data, name, part, k, lev, missing):
+    """Set the planted missing values that fall in this partition field to MDI.
+    ``missing`` items are (time index, field, level index or None, global row,
+    global column), indices on the field's own grid."""
+    r0, _, c0, _ = PARTITIONS[part]
+    for mk, mname, mlev, row, col in missing:
+        if (mk, mname, mlev) != (k, name, lev):
+            continue
+        lr, lc = row - r0, (col - c0) % NLON
+        if 0 <= lr < data.shape[0] and 0 <= lc < data.shape[1]:
+            data[lr, lc] = MDI
+
+
 def write_archive(
-    root: Path, times: list[dt.datetime], *, corrupt_overlap: bool = False
+    root: Path,
+    times: list[dt.datetime],
+    *,
+    corrupt_overlap: bool = False,
+    missing: tuple = (),
 ) -> SyntheticArchive:
-    """Write topography and met files for ``times`` under ``root``."""
+    """Write topography and met files for ``times`` under ``root``, with MDI at
+    the points listed in ``missing`` (see :func:`_punch`)."""
     root.mkdir(parents=True, exist_ok=True)
     for part in PARTITIONS:
         lon0, lat0, nrow, ncol, lons, lats = points("scalar", part)
@@ -209,6 +227,7 @@ def write_archive(
                 for lev in range(NZ):
                     z = a[lev] + b[lev] * h
                     data = fn(lons[None, :], lats[:, None], z, k)
+                    _punch(data, name, part, k, lev, missing)
                     fields.append(_pp_field(
                         name, data, lon0, lat0, **inst, lbvc=65, lblev=lev + 1,
                         blev=a[lev], bhlev=b[lev],
@@ -226,6 +245,7 @@ def write_archive(
                 data = fn(lons[None, :], lats[:, None], k) * np.ones((nrow, ncol))
                 if corrupt_overlap and name == "ps" and part == 2:
                     data[:, -1] += 1.0  # last column overlaps partition 3
+                _punch(data, name, part, k, None, missing)
                 fields.append(_pp_field(
                     name, data, lon0, lat0, **kw, lbvc=129, lblev=9999, blev=0.0, bhlev=0.0,
                 ))  # fmt: skip

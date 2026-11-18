@@ -34,7 +34,12 @@ from pathlib import Path
 
 import numpy as np
 
-from metbazarr.formats.glide import GRAVITY_M_S2, R_DRY_AIR_J_KG_K, TV_COEFF
+from metbazarr.formats.glide import (
+    GRAVITY_M_S2,
+    MAX_FILLED_PER_VARIABLE,
+    R_DRY_AIR_J_KG_K,
+    TV_COEFF,
+)
 
 #: STASH codes read from the instantaneous (``_I_``) files.
 STASH = {
@@ -353,6 +358,11 @@ def _to_datetime(t) -> datetime:
     return datetime(t.year, t.month, t.day, t.hour, t.minute, t.second)
 
 
+#: Most missing values one source field may hold: the fill rule's limit per
+#: variable per store.
+MAX_MISSING_PER_FIELD = MAX_FILLED_PER_VARIABLE
+
+
 @dataclass
 class _Mosaic:
     """Assembles a cropped array from partition fields, checking overlaps."""
@@ -383,7 +393,7 @@ class _Mosaic:
         already = self.filled[np.ix_(tr, tc)]
         if already.any():
             old = self.data[np.ix_(tr, tc)][already]
-            if not np.array_equal(old, block[already]):
+            if not np.array_equal(old, block[already], equal_nan=True):
                 raise UMError(f"{label}: partitions disagree where they overlap")
         self.data[np.ix_(tr, tc)] = block
         self.filled[np.ix_(tr, tc)] = True
@@ -460,7 +470,12 @@ class UMArchive:
                 if str(fld.stash) == STASH["orog"]:
                     _check_grid(fld, crop.grid, "scalar", "orography")
                     row0, col0 = _origin(fld, crop.grid, "scalar")
-                    mosaic.add(_values(fld, "orography"), row0, col0, "orography")
+                    mosaic.add(
+                        _values(fld, "orography", max_missing=0),
+                        row0,
+                        col0,
+                        "orography",
+                    )
         return mosaic.result("orography")
 
     def read_time(
@@ -559,11 +574,26 @@ class UMArchive:
                 raise UMError(f"{label}: valid at {t1}, expected {time}")
 
 
-def _values(fld, label: str) -> np.ndarray:
+def _values(fld, label: str, max_missing: int = MAX_MISSING_PER_FIELD) -> np.ndarray:
+    """Field values as float64, missing data (the field's MDI) as NaN.
+
+    A few missing values pass through as NaN, for the format's fill rule to
+    deal with once every time is written (``metbazarr build --step finish``).
+    More than ``max_missing`` in one field is more than the rule could ever
+    fill, so it stops the conversion here.
+    """
     data = np.ma.filled(np.ma.asarray(fld.data, dtype=np.float64), np.nan)
-    mdi = float(fld.bmdi)
-    if np.any(data == mdi) or np.isnan(data).any():
-        raise UMError(f"{label}: contains missing data")
+    data[data == float(fld.bmdi)] = np.nan
+    n_missing = int(np.isnan(data).sum())
+    if n_missing > max_missing:
+        raise UMError(
+            f"{label}: {n_missing} missing values"
+            + (
+                f", more than the {max_missing} the fill rule could fill"
+                if max_missing
+                else " (never filled)"
+            )
+        )
     return data
 
 

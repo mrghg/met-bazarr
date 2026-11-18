@@ -17,7 +17,9 @@ Scope: [decision 0001](docs/decisions/0001-scope-and-boundary.md); task list:
 **GLIDE task B14 (UM Mk10 → `glide` format 1.0).** Brief: GLIDE
 `dev/agent/briefs/B14-um-met-conversion.md` (PR #23). Stage 1 assessment in
 `notes/B14-stage1-assessment.md` (git-ignored). Conversion choices agreed by
-Matt: [decision 0003](docs/decisions/0003-um-to-glide-conversion.md).
+Matt: [decision 0003](docs/decisions/0003-um-to-glide-conversion.md);
+GLIDE format 1.0 fill rule (GLIDE `e3df2e3`) and u* correction:
+[decision 0004](docs/decisions/0004-missing-values-and-ustar-note.md).
 Trial EUR-Jan store built 2026-11-17 (LOTUS job 2607290, untagged commit
 d4e9b63, **not a validation input**):
 `/work/scratch-pw5/mattrigby/met-bazarr/EUR_20181222-20190115_UMG-Mk10.zarr`, 193 times,
