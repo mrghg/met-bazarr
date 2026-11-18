@@ -8,26 +8,31 @@ _Last updated: 2026-11-17_
 
 ## Current state
 <!-- Where things stand right now, in a sentence or two. -->
-Scaffold only: no package code yet. Scope and the boundary with the models are
-proposed in [decision 0001](docs/decisions/0001-scope-and-boundary.md);
-the task list, and who needs each task, is in [docs/roadmap.md](docs/roadmap.md).
-GLIDE's development plan waits on this repository for its task B1 and its
-pre-registration, so the GLIDE tasks come first.
+M0 and M1 minimum are in place on branch `b14-um-glide` (draft PR #1): the
+`glide` format writer and validator, the UM source, recipes, `metbazarr build` /
+`validate`, provenance attributes (decision 0002) and 41 synthetic tests.
+Scope: [decision 0001](docs/decisions/0001-scope-and-boundary.md); task list:
+[docs/roadmap.md](docs/roadmap.md).
 
-**GLIDE task B14 (UM Mk10 → `glide` format 1.0), stage 1 done 2026-11-17.**
-Brief: GLIDE `dev/agent/briefs/B14-um-met-conversion.md` (PR #23). The
-assessment is in `notes/B14-stage1-assessment.md` (git-ignored: it holds
-numbers derived from Met Office data). **Stopped for Matt** to agree the
-vertical route, destaggering, u* density and flux timing before stage 2.
+**GLIDE task B14 (UM Mk10 → `glide` format 1.0).** Brief: GLIDE
+`dev/agent/briefs/B14-um-met-conversion.md` (PR #23). Stage 1 assessment in
+`notes/B14-stage1-assessment.md` (git-ignored). Conversion choices agreed by
+Matt: [decision 0003](docs/decisions/0003-um-to-glide-conversion.md).
+Trial EUR-Jan store built 2026-11-17 (LOTUS job 2607290, untagged commit
+d4e9b63, **not a validation input**):
+`/work/scratch-pw5/mattrigby/met-bazarr/EUR-Jan_UMG_Mk10PT.zarr`, 193 times,
+28 GB, 1 h 36 min on one CPU, 2.8 GB peak; validator PASS with full scan;
+`scripts/check_um_store.py` at two times: native fields bit-identical, winds
+within their source values, GLIDE pressure rebuild within 0.57 hPa of the UM's.
+Scratch files are deleted 28 days after last access.
 
 ## Next actions
 <!-- The concrete next steps, most important first. -->
-- [ ] **B14 stage 2** (after agreement): M0 + M1 minimum (writer, validator,
-      synthetic tests), then the UM source with `iris`, then one EUR day,
-      then the four case-library windows from a tagged release.
-- [ ] **M0** — recipe format, `metbazarr build` / `validate`, format registry,
-      provenance attributes (write decision 0002), synthetic tests, CI.
-- [ ] **M1** — the `glide` format, from GLIDE's `docs/met_schema.md`.
+- [ ] **B14**: review and merge PR #1; tag a release; build the four
+      case-library windows with `--validation-input` from the tag; move them
+      to Isambard, where GLIDE's reader opens them (GLIDE side; no torch or
+      GLIDE on JASMIN).
+- [ ] **M0/M1** remainder: anything in the roadmap beyond the B14 minimum.
 - [ ] **M2** — ERA5 from the ARCO store, ported from GLIDE's
       `scripts/download_sample_cube.py`; values identical to GLIDE's current
       cubes on pressure and model levels.
