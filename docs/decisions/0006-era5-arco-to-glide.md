@@ -1,9 +1,9 @@
 # 0006 — ERA5 from ARCO to GLIDE format 2.0; ECMWF-direct ERA5 kept separate
 
 - **Date:** 2026-11-19
-- **Status:** Accepted for the conversion (agreed with Matt Rigby, who asked for
-  GLIDE's ERA5 processing to move here); the u\* consequence below is flagged
-  for his confirmation before validation stores are built
+- **Status:** Accepted (agreed with Matt Rigby, who asked for GLIDE's ERA5
+  processing to move here, and confirmed u\* from the stresses on
+  2026-11-19)
 
 ## Context
 
@@ -69,10 +69,13 @@ be confused.
 
   Over the sea the two agree, which checks the formula. Over land, ERA5's
   surface stresses include the drag of sub-grid orography (turbulent
-  orographic form drag), which `zust` does not. FLEXPART uses these stresses,
-  so this matches its method, but it **raises GLIDE's u\* over land by a median
-  factor of about 1.9**, and more over mountains, relative to GLIDE's current
-  ERA5 input. **Flagged for Matt before validation stores are built.**
+  orographic form drag), which `zust` does not. This **raises GLIDE's u\* over
+  land by a median factor of about 1.9**, and more over mountains, relative to
+  GLIDE's earlier ERA5 input. Matt confirmed the stresses on 2026-11-19, for
+  the reasons in GLIDE decision 0020: one definition of u\* on ERA5 and the UM
+  (whose meteorology has only the stresses), and the hill drag belongs in
+  grid-cell turbulence. GLIDE revisits the choice after v1, against the tracer
+  experiments and radon.
 - **Speed:** about 12 s per hour of data and 2 GB per fill process; 8
   processes built 24 EUR hours in 2.5 minutes.
 
