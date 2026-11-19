@@ -42,9 +42,12 @@ Scratch files are deleted 28 days after last access.
       them with the sha256 lists; GLIDE's reader test runs there (no torch or
       GLIDE on JASMIN). Do not copy the v0.1.0 stores.
 - [ ] **M0/M1** remainder: anything in the roadmap beyond the B14 minimum.
-- [ ] **M2** — ERA5 from the ARCO store, ported from GLIDE's
-      `scripts/download_sample_cube.py`; values identical to GLIDE's current
-      cubes on pressure and model levels.
+- [ ] **ERA5 (M2, M5; decision 0006)**: source `era5_arco` and 16 recipes
+      done (model levels; values bit-identical to GLIDE's downloader; u\*
+      from the surface stresses, confirmed by Matt, decision 0006). Next:
+      build the validation stores from a tag with
+      `scripts/isambard/build_era5.sh`. Still to do: pressure levels
+      and the level cap (M2); ECMWF-direct ERA5 (M2b, waits for MARS access).
 - [ ] **M3** — check which ERA5 ensemble (EDA) variables the CDS offers as
       ensemble members, then the column extraction for GLIDE's seven standard
       cases.

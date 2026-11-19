@@ -172,6 +172,12 @@ PLAUSIBLE = {
 }
 
 
+#: A lowest model level further below the surface geopotential than this is an
+#: error (geopotential height stored as geopotential, or mixed units, puts it
+#: thousands of metres below); less is a warning, as in ARCO's ERA5.
+BELOW_GROUND_ERROR_M = 500.0
+
+
 def normalise_units(units: str) -> str:
     """Normalise a unit string as GLIDE does: lower case, no spaces."""
     return units.strip().lower().replace(" ", "")
@@ -579,11 +585,21 @@ def _check_physics(
     if np.any(np.diff(stacked, axis=0) <= 0):
         err("geopotential does not increase monotonically with level in every column")
     if vcoord == "model_level":
-        gap = stacked[0] - phi_s
-        if np.nanmin(gap) < -GRAVITY_M_S2:
+        gap_m = (stacked[0] - phi_s) / GRAVITY_M_S2
+        deepest = -float(np.nanmin(gap_m))
+        if deepest > BELOW_GROUND_ERROR_M:
             err(
                 "lowest model level lies below geopotential_at_surface "
-                f"(by up to {-np.nanmin(gap) / GRAVITY_M_S2:.0f} m): mixed units?"
+                f"(by up to {deepest:.0f} m): mixed units?"
+            )
+        elif deepest > 1.0:
+            # ARCO's ERA5 does this over high ground (up to ~125 m in 3% of NAM
+            # cells): its model-level and surface geopotentials are not exactly
+            # consistent. GLIDE excludes sub-surface levels, so it is reported.
+            report.warnings.append(
+                "lowest model level lies below geopotential_at_surface in "
+                f"{float(np.mean(gap_m < -1.0)):.1%} of columns (by up to "
+                f"{deepest:.0f} m); GLIDE excludes levels below the surface"
             )
         # Top of the model must reach 20 km above the ground everywhere.
         top_agl = (stacked[-1] - phi_s) / GRAVITY_M_S2

@@ -33,6 +33,10 @@ science = [
 um = [
     "scitools-iris>=3.14.1",
 ]
+# ERA5 from the ARCO stores on Google Cloud (anonymous gs:// access).
+arco = [
+    "gcsfs>=2026.10.1",
+]
 
 [project.scripts]
 metbazarr = "metbazarr.cli:main"

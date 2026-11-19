@@ -1,4 +1,9 @@
-"""Build a ``glide`` store from Met Office UM files, in three steps.
+"""Build a ``glide`` store from a recipe, in three steps.
+
+The steps below are for Met Office UM files. ERA5 recipes (source types
+``era5_arco`` and ``era5_ecmwf``) are handed to :mod:`metbazarr.build_era5` by
+:func:`plan`, :func:`create` and :func:`fill`; :func:`finish` is shared.
+
 
 1. :func:`create` writes the store's coordinates, attributes and the
    time-invariant fields, and declares the time-varying arrays (unwritten
@@ -44,6 +49,44 @@ class Plan:
     times: list[datetime]
 
 
+#: Source types other than the UM, by the module that builds them.
+ERA5_TYPES = ("era5_arco", "era5_ecmwf")
+
+
+def _era5(recipe: Recipe):
+    """The ERA5 builder if the recipe is ERA5, else None."""
+    kind = recipe.source.get("type")
+    if kind == "era5_ecmwf":
+        from metbazarr.sources import era5_ecmwf
+
+        era5_ecmwf.not_implemented()
+    if kind == "era5_arco":
+        from metbazarr import build_era5
+
+        return build_era5
+    return None
+
+
+def interval_hours(recipe: Recipe) -> int:
+    """The source's time step, in hours."""
+    builder = _era5(recipe)
+    return builder.INTERVAL_HOURS if builder else archive_from(recipe).interval_hours
+
+
+def describe(recipe: Recipe) -> str:
+    """One line on what the recipe resolves to (``--step plan``)."""
+    builder = _era5(recipe)
+    if builder:
+        return builder.describe(builder.plan(recipe), recipe)
+    p = plan(recipe)
+    return (
+        f"{recipe.domain.name}: {p.crop.ny} x {p.crop.nx} points, lat "
+        f"{p.crop.latitudes[0]}..{p.crop.latitudes[-1]}, lon {p.crop.longitudes[0]}.."
+        f"{p.crop.longitudes[-1]}; partitions {p.parts}; {len(p.times)} times "
+        f"{p.times[0]} .. {p.times[-1]}; output {recipe.output}"
+    )
+
+
 def archive_from(recipe: Recipe) -> um.UMArchive:
     src = recipe.source
     if src.get("type") != "um_global":
@@ -61,6 +104,9 @@ def archive_from(recipe: Recipe) -> um.UMArchive:
 def plan(recipe: Recipe) -> Plan:
     if recipe.format != glide.FORMAT_NAME:
         raise ValueError(f"unsupported format {recipe.format!r}")
+    builder = _era5(recipe)
+    if builder:
+        return builder.plan(recipe)
     archive = archive_from(recipe)
     crop = um.crop_for_box(archive.grid(), recipe.domain)
     parts = archive.partitions_for(crop)
@@ -113,6 +159,9 @@ def _source_dataset(recipe: Recipe, nz: int) -> str:
 
 def create(recipe: Recipe, *, overwrite: bool = False) -> Path:
     """Create the store: coordinates, attributes, static fields, empty arrays."""
+    builder = _era5(recipe)
+    if builder:
+        return builder.create(recipe, overwrite=overwrite)
     p = plan(recipe)
     out = recipe.output
     if out.exists() and not overwrite:
@@ -244,6 +293,11 @@ def fill(
     allow_commit_mismatch: bool = False,
 ) -> None:
     """Convert and write the times ``indices`` (all if None) into the store."""
+    builder = _era5(recipe)
+    if builder:
+        return builder.fill(
+            recipe, indices, allow_commit_mismatch=allow_commit_mismatch
+        )
     p = plan(recipe)
     ds = _open_for_fill(recipe, p, allow_commit_mismatch)
     store_levels = (ds["level_height"].values, ds["level_sigma"].values)

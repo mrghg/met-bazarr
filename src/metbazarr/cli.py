@@ -29,18 +29,12 @@ def cmd_build(args: argparse.Namespace) -> int:
 
     recipe = load_recipe(args.recipe)
     if args.step in ("plan",):
-        p = build.plan(recipe)
-        print(
-            f"{recipe.domain.name}: {p.crop.ny} x {p.crop.nx} points, lat "
-            f"{p.crop.latitudes[0]}..{p.crop.latitudes[-1]}, lon {p.crop.longitudes[0]}.."
-            f"{p.crop.longitudes[-1]}; partitions {p.parts}; {len(p.times)} times "
-            f"{p.times[0]} .. {p.times[-1]}; output {recipe.output}"
-        )
+        print(build.describe(recipe))
         return 0
     if args.step in ("create", "all"):
         build.create(recipe, overwrite=args.overwrite)
     if args.step in ("fill", "all"):
-        n = len(recipe.times(build.archive_from(recipe).interval_hours))
+        n = len(recipe.times(build.interval_hours(recipe)))
         if args.array_block:
             indices = _array_block(n, args.array_block)
         else:

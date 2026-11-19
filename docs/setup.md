@@ -44,13 +44,30 @@ git-ignored; gitleaks will block commits that contain secrets.
 ## Tests
 
 ```bash
-uv sync --extra um            # iris, for the UM tests
+uv sync --extra um            # iris, for the UM tests (needs udunits2)
 uv run pytest
 ```
 
 The tests use small synthetic inputs only: never real (or licensed) data. The
 UM tests write synthetic PP files, which need iris but not `mo_pack`; they are
 skipped if iris is missing.
+
+## ERA5 from ARCO on Isambard AI
+
+```bash
+uv sync --extra arco                      # gcsfs, for the public gs:// stores
+export METBAZARR_OUT=/projects/<project>/glide-data/era5-arco
+.venv/bin/metbazarr build recipes/era5-arco/EUR-day-20190108.yaml --step plan
+sbatch scripts/isambard/build_era5.sh recipes/era5-arco/EUR-Jan.yaml recipes/era5-arco/NAM-Jan.yaml
+```
+
+Only a person submits jobs; on Isambard AI, downloads must not run on the
+login node. The job script creates each store, fills its times with `NPROC`
+(default 8) processes at once, then runs `finish`; add
+`FINISH_FLAGS=--validation-input` for a store built from a tagged release.
+ERA5 stores are named `<DOMAIN>_<start YYYYMMDD>-<end YYYYMMDD>_ERA5-ARCO.zarr`.
+`scripts/check_era5_equivalence.py NEW.zarr OLD.zarr` compares a store with
+one written by GLIDE's own downloader.
 
 ## Met Office UM on JASMIN
 
