@@ -1,6 +1,6 @@
-# metbazarr
+# met-bazarr
 
-A marketplace for compressed zarr stores for atmospheric models, created from meteorological fields.
+A "marketplace" for compressed zarr stores for atmospheric models, created from meteorological fields.
 
 ![met-bazarr: three stacked meteorological fields, continuous on the left, crack
 along a regular grid and separate into small, compressed chunks on the
