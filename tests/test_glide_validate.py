@@ -356,3 +356,17 @@ def test_format_1_0_store_refused(tmp_path):
         make_store(tmp_path / "old.zarr", glide_format_version="1.0")
     )
     assert "this validator implements '2.0'" in errors
+
+
+def test_small_below_ground_offset_is_a_warning(tmp_path):
+    # ARCO's ERA5: over high ground the lowest model level can sit up to ~125 m
+    # below the surface geopotential. Reported, not an error; a unit mistake
+    # (thousands of metres) still fails.
+    def sink(ds):
+        lowest = int(ds.geopotential.mean(("latitude", "longitude")).argmin())
+        ds["geopotential"][lowest] = ds.geopotential_at_surface - 100.0 * G
+        return ds
+
+    report = glide.validate(make_store(tmp_path / "sink.zarr", sink))
+    assert report.ok, report.format()
+    assert any("below geopotential_at_surface" in w for w in report.warnings)
