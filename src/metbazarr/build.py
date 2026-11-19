@@ -179,6 +179,11 @@ def create(recipe: Recipe, *, overwrite: bool = False) -> Path:
     ds = xr.Dataset(data_vars, coords=coords)
     for name in glide.REQUIRED:
         ds[name].attrs["units"] = glide.CANONICAL_UNITS[name]
+    # Means over the interval ending at each timestamp (format 2.0, decision 0005):
+    # the heat flux, and u* derived from the mean stresses.
+    mean_seconds = 3600 * p.archive.mean_hours
+    for name in um.MEAN_VARIABLES:
+        ds[name].attrs.update(glide.period_attrs("mean", mean_seconds))
 
     ds.attrs = glide.store_attrs(
         vertical_coordinate="model_level",
