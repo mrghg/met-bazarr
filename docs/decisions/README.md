@@ -19,3 +19,4 @@ Copy [`0000-template.md`](0000-template.md) to start a new record:
 | [0004](0004-missing-values-and-ustar-note.md) | 2026-11-18 | Missing source values: GLIDE format 1.0 fill rule; u* note in 0003 corrected | Accepted |
 | [0005](0005-glide-format-2-time-labels.md) | 2026-11-19 | GLIDE format 2.0: means and accumulations labelled per variable | Accepted |
 | [0006](0006-era5-arco-to-glide.md) | 2026-11-19 | ERA5 from ARCO to GLIDE format 2.0; ECMWF-direct ERA5 kept separate | Accepted |
+| [0007](0007-um-surface-stress-form-drag.md) | 2026-11-19 | The UM surface stresses include sub-grid orographic form drag (evidence) | Accepted |

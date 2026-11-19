@@ -73,6 +73,9 @@ Assessment of the files (8 January 2019, summarised from the stage-1 report):
 - Friction velocity is exactly 0 at about 0.3% of points, where both
   stress components round to 0 in the packing (|tau| < ~5e-4 Pa). GLIDE floors
   u* at 1e-3 m s-1 in the Obukhov length but not everywhere it uses u*.
+- The surface stresses 3/219 and 3/220 include turbulent form drag from
+  sub-grid hills (effective roughness in GA6.1), but not the blocking and
+  gravity-wave drag: decision 0007, with a measured comparison against ERA5.
 - One EUR day is ~1.2 GB; each 24-day EUR window ~29 GB, NAM ~25 GB.
 - The same method serves the other UMG series if their structure matches; a
   different series needs its files checked and this record extended.
