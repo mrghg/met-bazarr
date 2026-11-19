@@ -1,14 +1,15 @@
 """The ``glide`` format: GLIDE's meteorology input contract.
 
 The authoritative definition is ``docs/met_schema.md`` in the GLIDE repository
-(https://github.com/mrghg/glide). This module implements **format version 1.0**
+(https://github.com/mrghg/glide). This module implements **format version 2.0**
 as it stood at GLIDE commit :data:`GLIDE_SCHEMA_COMMIT`. When that page changes,
 this module's version changes with it.
 
 What lives here:
 
 - the variable table (names, dimensions, accepted units);
-- the store attributes (format tag and provenance);
+- the store attributes (format tag and provenance), and the per-variable
+  time attributes that mark means and accumulations (:func:`period_attrs`);
 - encoding and chunking for writing;
 - :func:`fill_isolated_missing`, the page's fill rule for isolated missing
   source values (recorded in ``glide_filled_values``);
@@ -28,10 +29,10 @@ import numpy as np
 import xarray as xr
 
 FORMAT_NAME = "glide"
-FORMAT_VERSION = "1.0"
-#: GLIDE commit whose ``docs/met_schema.md`` defines format 1.0 (branch
-#: ``docs/met-schema-v1``, PR #23).
-GLIDE_SCHEMA_COMMIT = "e3df2e3e9b8170518fa0d3595d8f6990ef4e6a41"
+FORMAT_VERSION = "2.0"
+#: GLIDE commit whose ``docs/met_schema.md`` defines format 2.0 (the merge of
+#: GLIDE PR #27, decision 0020).
+GLIDE_SCHEMA_COMMIT = "b21f58602ef8660e9aa20eb104cce3336f5ebf28"
 
 # Physical constants, identical to GLIDE's (src/lpdm/met_reader.py,
 # src/lpdm/vertical_grid.py), so derived fields are consistent with how GLIDE
@@ -122,7 +123,7 @@ ACCEPTED_UNITS = {
     "geopotential_at_surface": _GEOPOTENTIAL,
 }
 
-#: Store attributes every met-bazarr ``glide`` store carries (format 1.0,
+#: Store attributes every met-bazarr ``glide`` store carries (format 1.0 onward,
 #: "Provenance attributes"). The flux attributes depend on the flux units and
 #: are checked separately.
 PROVENANCE_ATTRS = (
@@ -139,6 +140,24 @@ PROVENANCE_ATTRS = (
     "domain",
 )
 
+#: Per-variable attributes marking a mean or accumulation over the period that
+#: ends at each timestamp (format 2.0, "What a timestamp means"). A variable
+#: with neither is a snapshot.
+CELL_METHODS_ATTR = "cell_methods"
+PERIOD_ATTR = "glide_period_seconds"
+PERIOD_METHODS = {"mean": "time: mean", "sum": "time: sum"}
+
+
+def period_attrs(kind: str, seconds: int) -> dict[str, object]:
+    """Variable attributes for a mean (``kind="mean"``) or accumulation
+    (``kind="sum"``) over the ``seconds`` ending at each timestamp."""
+    if kind not in PERIOD_METHODS:
+        raise ValueError(f"kind must be one of {sorted(PERIOD_METHODS)}, got {kind!r}")
+    if int(seconds) <= 0:
+        raise ValueError(f"period must be positive, got {seconds}")
+    return {CELL_METHODS_ATTR: PERIOD_METHODS[kind], PERIOD_ATTR: int(seconds)}
+
+
 # Plausible physical ranges, wide enough for any real atmosphere and narrow
 # enough to catch a unit mistake (hPa for Pa, degrees C for K, height for
 # geopotential).
@@ -151,6 +170,12 @@ PLAUSIBLE = {
     "surface_pressure": (30_000.0, 110_000.0),
     "friction_velocity": (0.0, 10.0),
 }
+
+
+#: A lowest model level further below the surface geopotential than this is an
+#: error (geopotential height stored as geopotential, or mixed units, puts it
+#: thousands of metres below); less is a warning, as in ARCO's ERA5.
+BELOW_GROUND_ERROR_M = 500.0
 
 
 def normalise_units(units: str) -> str:
@@ -203,7 +228,7 @@ def validate(
     full_scan: bool = True,
     validation_input: bool = False,
 ) -> ValidationReport:
-    """Check a store against ``glide`` format 1.0.
+    """Check a store against ``glide`` format :data:`FORMAT_VERSION`.
 
     Args:
         path: The Zarr store.
@@ -261,6 +286,7 @@ def validate(
         return report
 
     time = ds[TIME].values
+    step_s: int | None = None
     if not np.issubdtype(time.dtype, np.datetime64):
         err(f"time has dtype {time.dtype}, expected datetime64")
     elif time.size > 1:
@@ -272,7 +298,8 @@ def validate(
                 f"time spacing is not uniform: steps of {sorted(set(steps.tolist()))} s"
             )
         else:
-            info(f"{time.size} times, every {int(steps[0])} s, {time[0]} to {time[-1]}")
+            step_s = int(steps[0])
+            info(f"{time.size} times, every {step_s} s, {time[0]} to {time[-1]}")
     lat, lon = ds[LAT].values, ds[LON].values
     if lat.ndim != 1 or not (np.all(np.diff(lat) > 0) or np.all(np.diff(lat) < 0)):
         err("latitude must be 1-D and strictly monotonic")
@@ -375,6 +402,9 @@ def validate(
                     f"glide_flux_averaging_seconds is {avg!r}, expected a whole number >= 0"
                 )
 
+    # --- what each timestamp means (format 2.0) ----------------------------
+    _check_periods(ds, attrs, step_s, shf_units, validation_input, report)
+
     if report.errors:
         return report
 
@@ -392,6 +422,109 @@ def validate(
                 err(f"{name} has {n_bad} non-finite values")
         info("full scan: every value of every required variable read")
     return report
+
+
+def _check_periods(
+    ds: xr.Dataset,
+    attrs: dict,
+    step_s: int | None,
+    shf_units: str,
+    validation_input: bool,
+    report: ValidationReport,
+) -> None:
+    """Check the per-variable ``cell_methods`` / ``glide_period_seconds``.
+
+    A period variable carries both; its method is one GLIDE knows; its period
+    equals the store's time step (GLIDE refuses any other); time-invariant
+    fields are never period variables. The heat flux's labels agree with the
+    store-level flux attributes. In validation inputs, ``friction_velocity`` is
+    a period variable, because it is derived from the mean surface stresses.
+    """
+    err, info = report.errors.append, report.info.append
+    periods: dict[str, int] = {}
+    for name in REQUIRED:
+        va = ds[name].attrs
+        has_cm, has_p = CELL_METHODS_ATTR in va, PERIOD_ATTR in va
+        if not (has_cm or has_p):
+            continue
+        if has_cm != has_p:
+            err(f"{name}: {CELL_METHODS_ATTR} and {PERIOD_ATTR} must come together")
+            continue
+        if TIME not in ds[name].dims:
+            err(f"{name} has no time dimension, so it cannot be a period variable")
+            continue
+        method = str(va[CELL_METHODS_ATTR])
+        if method not in PERIOD_METHODS.values():
+            err(
+                f"{name}: {CELL_METHODS_ATTR} is {method!r}, expected one of "
+                f"{sorted(PERIOD_METHODS.values())}"
+            )
+        try:
+            period = int(va[PERIOD_ATTR])
+            if period <= 0 or float(va[PERIOD_ATTR]) != period:
+                raise ValueError
+        except (TypeError, ValueError):
+            err(
+                f"{name}: {PERIOD_ATTR} is {va[PERIOD_ATTR]!r}, "
+                "expected a whole number > 0"
+            )
+            continue
+        if step_s is not None and period != step_s:
+            err(
+                f"{name}: {PERIOD_ATTR} = {period} s differs from the store's time step "
+                f"of {step_s} s (GLIDE refuses this)"
+            )
+        periods[name] = period
+
+    shf = "surface_sensible_heat_flux"
+    if shf_units in _FLUX_ACCUMULATED:
+        acc = attrs.get("glide_flux_accumulation_seconds")
+        if shf not in periods:
+            err(f"{shf} is accumulated (J m**-2) but not labelled as a period variable")
+        else:
+            if ds[shf].attrs[CELL_METHODS_ATTR] != PERIOD_METHODS["sum"]:
+                err(
+                    f"{shf} is accumulated (J m**-2): "
+                    f"{CELL_METHODS_ATTR} must be 'time: sum'"
+                )
+            if acc is not None and str(periods[shf]) != str(acc):
+                err(
+                    f"{shf}: {PERIOD_ATTR} = {periods[shf]} differs from "
+                    f"glide_flux_accumulation_seconds = {acc}"
+                )
+    elif shf_units in _FLUX_RATE:
+        avg = attrs.get("glide_flux_averaging_seconds")
+        averaged = avg is not None and str(avg).strip() not in ("", "0")
+        if averaged and shf not in periods:
+            err(
+                f"{shf} is a mean (glide_flux_averaging_seconds = {avg}) but not "
+                "labelled as a period variable"
+            )
+        if shf in periods:
+            if ds[shf].attrs[CELL_METHODS_ATTR] != PERIOD_METHODS["mean"]:
+                err(
+                    f"{shf} is a rate (W m**-2): "
+                    f"{CELL_METHODS_ATTR} must be 'time: mean'"
+                )
+            if str(periods[shf]) != str(avg):
+                err(
+                    f"{shf}: {PERIOD_ATTR} = {periods[shf]} differs from "
+                    f"glide_flux_averaging_seconds = {avg}"
+                )
+
+    if validation_input and "friction_velocity" not in periods:
+        err(
+            "friction_velocity is not a period variable: validation inputs derive it "
+            "from the mean surface stresses (format 2.0)"
+        )
+    if periods:
+        info(
+            "period variables: "
+            + ", ".join(
+                f"{n} ({ds[n].attrs[CELL_METHODS_ATTR]}, {p} s)"
+                for n, p in sorted(periods.items())
+            )
+        )
 
 
 def _check_physics(
@@ -452,11 +585,21 @@ def _check_physics(
     if np.any(np.diff(stacked, axis=0) <= 0):
         err("geopotential does not increase monotonically with level in every column")
     if vcoord == "model_level":
-        gap = stacked[0] - phi_s
-        if np.nanmin(gap) < -GRAVITY_M_S2:
+        gap_m = (stacked[0] - phi_s) / GRAVITY_M_S2
+        deepest = -float(np.nanmin(gap_m))
+        if deepest > BELOW_GROUND_ERROR_M:
             err(
                 "lowest model level lies below geopotential_at_surface "
-                f"(by up to {-np.nanmin(gap) / GRAVITY_M_S2:.0f} m): mixed units?"
+                f"(by up to {deepest:.0f} m): mixed units?"
+            )
+        elif deepest > 1.0:
+            # ARCO's ERA5 does this over high ground (up to ~125 m in 3% of NAM
+            # cells): its model-level and surface geopotentials are not exactly
+            # consistent. GLIDE excludes sub-surface levels, so it is reported.
+            report.warnings.append(
+                "lowest model level lies below geopotential_at_surface in "
+                f"{float(np.mean(gap_m < -1.0)):.1%} of columns (by up to "
+                f"{deepest:.0f} m); GLIDE excludes levels below the surface"
             )
         # Top of the model must reach 20 km above the ground everywhere.
         top_agl = (stacked[-1] - phi_s) / GRAVITY_M_S2
@@ -490,7 +633,7 @@ def _check_physics(
 
 
 # ---------------------------------------------------------------------------
-# Isolated missing source values (format 1.0, "Validation inputs")
+# Isolated missing source values (format 1.0 onward, "Validation inputs")
 # ---------------------------------------------------------------------------
 
 FILLED_VALUES_ATTR = "glide_filled_values"
@@ -500,7 +643,7 @@ MAX_FILLED_PER_VARIABLE = 10
 NEVER_FILLED = (GEOPOTENTIAL, SURFACE_GEOPOTENTIAL)
 _FILL_KEYS = ("variable", "time", "latitude", "longitude", "before", "after", "filled")
 FILL_PROCESSING = (
-    "Isolated missing values filled by the GLIDE met format 1.0 rule: a single "
+    "Isolated missing values filled by the GLIDE met format fill rule (format 1.0 onward): a single "
     "timestep with finite values at the same cell either side, at most "
     f"{MAX_FILLED_PER_VARIABLE} per variable, set to the mean of the values at the "
     f"timesteps before and after; each listed in {FILLED_VALUES_ATTR}."
@@ -619,7 +762,7 @@ def fill_isolated_missing(path: str | Path) -> list[dict]:
 
     if problems:
         raise FillError(
-            "missing values the GLIDE format 1.0 fill rule does not allow to be "
+            "missing values the GLIDE format fill rule does not allow to be "
             "filled; fetch them from the original archive or report the case:\n  "
             + "\n  ".join(problems)
         )

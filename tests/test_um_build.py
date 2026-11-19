@@ -154,7 +154,7 @@ def test_store_matches_analytic_fields(tmp_path, archive, box):
 def test_store_attributes(tmp_path, archive):
     ds = build_store(write_recipe(tmp_path, archive, BOX_A))
     assert ds.attrs["glide_format"] == "glide"
-    assert ds.attrs["glide_format_version"] == "1.0"
+    assert ds.attrs["glide_format_version"] == glide.FORMAT_VERSION
     assert ds.attrs["glide_vertical_coordinate"] == "model_level"
     assert ds.attrs["glide_flux_averaging_seconds"] == "10800"
     assert "glide_flux_accumulation_seconds" not in ds.attrs
@@ -163,6 +163,12 @@ def test_store_attributes(tmp_path, archive):
     assert "SYNTHETIC" in ds.attrs["source_dataset"]
     assert "theta level 1" in ds.attrs["processing"]
     assert ds.attrs["compression"].startswith("lossless")
+    # format 2.0: the 3-h means are labelled, the snapshots are not
+    for name in ("surface_sensible_heat_flux", "friction_velocity"):
+        assert ds[name].attrs["cell_methods"] == "time: mean"
+        assert ds[name].attrs["glide_period_seconds"] == 10800
+    for name in ("temperature", "boundary_layer_height", "surface_pressure"):
+        assert "cell_methods" not in ds[name].attrs
     assert "time" not in ds.geopotential.dims
 
 
@@ -235,7 +241,7 @@ def test_cli_validate(tmp_path, archive, capsys):
     assert "PASS" in capsys.readouterr().out
 
 
-# --- isolated missing source values (format 1.0 fill rule) -------------------
+# --- isolated missing source values (the format's fill rule) -----------------
 
 # Global indices on each field's own grid. Row 35 is in the overlap of
 # partitions 1 and 2, so the missing value is in both files.

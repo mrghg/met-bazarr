@@ -94,6 +94,10 @@ def load_recipe(path: str | Path) -> Recipe:
     if end < start:
         raise ValueError(f"{path}: period ends before it starts")
     output = os.path.expandvars(str(raw["output"]).format(user=getpass.getuser()))
+    if "$" in output:
+        raise ValueError(
+            f"{path}: output {output!r} names an environment variable that is not set"
+        )
     comp = raw.get("compression", {}) or {}
     chunks = raw.get("chunks", {}) or {}
     return Recipe(

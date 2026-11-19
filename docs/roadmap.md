@@ -32,7 +32,7 @@ still to be discussed with the team and the GATES maintainer.
     levels, whose values are identical to those of the cubes GLIDE's own
     download script makes today.
   - **Task A8a, the validation tolerances:** columns of the ERA5 ensemble (the
-    EDA, 10 members) for six standard cases.
+    EDA, 10 members) for seven standard cases.
   - **Task A8b, the pre-registration:** every validation input store made with
     a released, citable met-bazarr version, which the pre-registration pins.
     This includes ERA5 for three historical tracer experiments.
@@ -138,6 +138,22 @@ values are identical to those of the cube GLIDE's current script produces,
 on both pressure and model levels. GLIDE's task B1 repeats this check through
 its own reader.
 
+**Status (2026-11-19, decision 0006).** Done for model levels: source
+`era5_arco`, recipes in `recipes/era5-arco/`, values bit-identical to GLIDE's
+downloader. Not yet: pressure levels and the level cap. u* is derived from the
+surface stresses (GLIDE format 2.0), so it differs from GLIDE's old cubes by
+design.
+
+### M2b — ERA5 directly from ECMWF (MARS or the CDS)
+
+**Needed by:** GLIDE task B13 (ARCO against flex_extract), and runs on exactly
+FLEXPART's input.
+
+- Source `era5_ecmwf`, kept separate from `era5_arco`: its own
+  `source_dataset` and the store suffix `_ERA5-ECMWF`. The source type exists
+  and refuses to run until implemented.
+- Needs MARS access, which Matt is arranging.
+
 ### M3 — ERA5 ensemble (EDA) from the CDS
 
 **Needed by:** GLIDE task A8a (columns); later, ensemble stores for
@@ -147,7 +163,7 @@ transport uncertainty (GLIDE roadmap 3a, 3e).
   type: 10 members, 3-hourly, about 0.5°. Members become a `member`
   dimension.
 - A column mode: extract single grid columns at given points and dates, for
-  GLIDE's six standard cases. Variables, from GLIDE's Tier 1 tolerance rule:
+  GLIDE's seven standard cases. Variables, from GLIDE's Tier 1 tolerance rule:
   - single levels: surface pressure, 2 m temperature, 2 m dewpoint, surface
     sensible heat flux, eastward and northward surface stress, friction
     velocity, boundary-layer height, surface geopotential;
@@ -191,6 +207,12 @@ met-bazarr without changes; the level mapping is recorded in a decision.
 
 **Acceptance.** Three recipes and their size estimates; the stores built by
 the human and listed in GLIDE's data inventory.
+
+**Status (2026-11-19).** Recipes written in `recipes/era5-arco/` with the
+windows of GLIDE's validation plan §4 (ETEX-1 and -2, CAPTEX-1 to 7 in five
+windows, ANATEX's scored period, and OKC80 over the full NAM box), on the EUR
+and NAM domains. The development stores GLIDE downloaded for these windows
+were 6-13 GB each (ANATEX 27 GB).
 
 ### M6 — First release
 

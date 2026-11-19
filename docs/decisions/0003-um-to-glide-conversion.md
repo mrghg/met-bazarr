@@ -67,10 +67,15 @@ Assessment of the files (8 January 2019, summarised from the stage-1 report):
   0.997–1.003 (layer ratio) below 15 km.
 - The heat flux and stresses are 3-h means used by GLIDE as if they were
   values at their end time, i.e. about 1.5 h late. Whether that matters is
-  for GLIDE.
+  for GLIDE. *(Superseded by decision 0005: from GLIDE format 2.0 they are
+  labelled as means and GLIDE holds each through the interval it averages,
+  as NAME does.)*
 - Friction velocity is exactly 0 at about 0.3% of points, where both
   stress components round to 0 in the packing (|tau| < ~5e-4 Pa). GLIDE floors
   u* at 1e-3 m s-1 in the Obukhov length but not everywhere it uses u*.
+- The surface stresses 3/219 and 3/220 include turbulent form drag from
+  sub-grid hills (effective roughness in GA6.1), but not the blocking and
+  gravity-wave drag: decision 0007, with a measured comparison against ERA5.
 - One EUR day is ~1.2 GB; each 24-day EUR window ~29 GB, NAM ~25 GB.
 - The same method serves the other UMG series if their structure matches; a
   different series needs its files checked and this record extended.

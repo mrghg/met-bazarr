@@ -1,6 +1,6 @@
 [project]
 name = "metbazarr"
-version = "0.1.0"
+version = "0.2.0"
 description = "Prepare meteorology as compressed Zarr stores for atmospheric transport models."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -32,6 +32,10 @@ science = [
 # conda-forge only: see docs/setup.md ("Met Office UM on JASMIN").
 um = [
     "scitools-iris>=3.14.1",
+]
+# ERA5 from the ARCO stores on Google Cloud (anonymous gs:// access).
+arco = [
+    "gcsfs>=2026.10.1",
 ]
 
 [project.scripts]

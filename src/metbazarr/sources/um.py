@@ -17,6 +17,9 @@ converts them to one grid, as agreed for GLIDE task B14
   level 1.
 - **Sensible heat flux:** negated (UM positive up, GLIDE positive down); a mean
   over the 3 h ending at the timestamp.
+- **Time labels** (GLIDE format 2.0, decision 0005): the heat flux and u* are
+  labelled as means over the 3 h ending at the timestamp, so GLIDE holds each
+  through the interval it averages, as NAME does.
 
 The numerical steps are plain numpy functions so that they can be tested on
 synthetic arrays; :class:`UMArchive` does the file handling. ``iris`` (with
@@ -56,6 +59,10 @@ STASH = {
     "tauy": "m01s03i220",
     "orog": "m01s00i033",
 }
+#: GLIDE variables that are means over the interval ending at the timestamp,
+#: labelled as such in the store (GLIDE format 2.0; decision 0005).
+MEAN_VARIABLES = ("surface_sensible_heat_flux", "friction_velocity")
+
 THREE_D_RHO = ("u", "v")
 THREE_D_THETA = ("w", "t", "q", "p_theta")
 MEANS = ("shf", "taux", "tauy")
@@ -330,10 +337,12 @@ PROCESSING = [
     "friction_velocity = sqrt(|tau|/rho): tau from the surface stresses 3/219 and "
     "3/220 (3-h means ending at the timestamp), each destaggered to scalar points "
     "as u and v; rho = surface_pressure / (287.05 * T * (1 + 0.6077 q)) with T, q "
-    "on theta level 1 at the timestamp.",
+    "on theta level 1 at the timestamp; a mean over the 3 h ending at the "
+    "timestamp, labelled cell_methods 'time: mean', glide_period_seconds 10800.",
     "surface_sensible_heat_flux = -(STASH 3/217): sign changed from the UM's "
     "positive-up to positive-down; a mean over the 3 h ending at the timestamp "
-    "(glide_flux_averaging_seconds = 10800).",
+    "(glide_flux_averaging_seconds = 10800), labelled cell_methods 'time: mean', "
+    "glide_period_seconds 10800.",
     "Computed in float64, stored as float32. No interpolation in time.",
 ]
 
