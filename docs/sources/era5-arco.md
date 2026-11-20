@@ -50,3 +50,11 @@ The period is in whole hours. Example: [`examples/recipes/era5-arco-day.yaml`](.
   59.0° N, 35.0° E; filled by the format's rule), and model-level geopotentials
   up to ~125 m below the surface geopotential over high ground (a validator
   warning).
+- **Small negative humidities** are ERA5's own (its numerics, mostly in very dry
+  air): a few per million values, down to about −3×10⁻⁵ kg/kg. They are kept
+  unchanged; the validator warns down to −10⁻⁴ and fails below.
+- **Requests can stall.** Each Google Cloud request times out after
+  `request_timeout_s` (default 120 s) and is retried by gcsfs. Without this, three
+  of eight fill processes once stalled until their job's time limit. To resume a
+  build, fill only what is missing:
+  `metbazarr build <recipe> --step fill --missing-only`.

@@ -10,6 +10,7 @@ Recipe ``source`` keys::
       model_level_store: gs://...   # optional; ARCO's by default
       surface_store: gs://...       # optional; ARCO's by default
       anonymous: true               # optional
+      request_timeout_s: 120        # optional; seconds before a request is retried
 
 The period must be whole hours (ERA5 is hourly).
 """
@@ -56,6 +57,7 @@ def source_from(recipe: Recipe) -> arco.ArcoSource:
         model_level_store=src.get("model_level_store", arco.MODEL_LEVEL_STORE),
         surface_store=src.get("surface_store", arco.SURFACE_STORE),
         anonymous=bool(src.get("anonymous", True)),
+        request_timeout_s=float(src.get("request_timeout_s", 120.0)),
     )
 
 

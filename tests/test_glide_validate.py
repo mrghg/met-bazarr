@@ -370,3 +370,16 @@ def test_small_below_ground_offset_is_a_warning(tmp_path):
     report = glide.validate(make_store(tmp_path / "sink.zarr", sink))
     assert report.ok, report.format()
     assert any("below geopotential_at_surface" in w for w in report.warnings)
+
+
+def test_small_negative_humidity_is_a_warning(tmp_path):
+    # ERA5 has a few small negative humidities (down to about -3e-5 kg/kg).
+    def dip(ds, value):
+        ds["specific_humidity"][0, 2, 3, 4] = value
+        return ds
+
+    report = glide.validate(make_store(tmp_path / "a.zarr", lambda ds: dip(ds, -3e-5)))
+    assert report.ok, report.format()
+    assert any("small negative values" in w for w in report.warnings)
+    report, errors = _errors(make_store(tmp_path / "b.zarr", lambda ds: dip(ds, -0.01)))
+    assert "specific_humidity spans" in errors

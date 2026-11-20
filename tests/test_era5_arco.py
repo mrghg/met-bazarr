@@ -202,3 +202,32 @@ def test_unset_output_variable_refused(tmp_path, monkeypatch):
     )
     with pytest.raises(ValueError, match="not set"):
         load_recipe(path)
+
+
+def test_request_timeout_reaches_gcsfs():
+    src = era5_arco.ArcoSource(request_timeout_s=30.0)
+    opened = {}
+    import xarray
+
+    def fake_open(uri, **kw):
+        opened.update(kw)
+        raise RuntimeError("stop")
+
+    orig, xarray.open_zarr = xarray.open_zarr, fake_open
+    try:
+        with pytest.raises(RuntimeError):
+            src._open("gs://bucket/store.zarr")
+    finally:
+        xarray.open_zarr = orig
+    assert opened["storage_options"] == {"requests_timeout": 30.0, "token": "anon"}
+
+
+def test_fill_missing_only_resumes(tmp_path, arco):
+    from metbazarr.cli import main
+
+    recipe = write_recipe(tmp_path, arco, BOX_NAM)
+    build.create(recipe)
+    build.fill(recipe, range(0, 3))
+    assert build.missing_times(recipe) == [3, 4, 5]
+    assert main(["build", str(recipe.path), "--step", "fill", "--missing-only"]) == 0
+    assert build.missing_times(recipe) == []

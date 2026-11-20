@@ -165,7 +165,10 @@ PLAUSIBLE = {
     "u_component_of_wind": (-200.0, 200.0),
     "v_component_of_wind": (-200.0, 200.0),
     "temperature": (150.0, 350.0),
-    "specific_humidity": (0.0, 0.05),
+    # ERA5 has small negative humidities (its numerics; mostly very dry air):
+    # down to about -3e-5 kg/kg, a few per million values. Down to
+    # NEGATIVE_Q_TOLERANCE they are a warning; GLIDE clamps where it matters.
+    "specific_humidity": (-1e-4, 0.05),
     "boundary_layer_height": (0.0, 10_000.0),
     "surface_pressure": (30_000.0, 110_000.0),
     "friction_velocity": (0.0, 10.0),
@@ -540,6 +543,12 @@ def _check_physics(
         if vmin < lo or vmax > hi:
             err(
                 f"{name} spans {vmin:g}..{vmax:g}, outside the plausible {lo:g}..{hi:g}"
+            )
+        elif name == "specific_humidity" and vmin < 0.0:
+            warn(
+                f"specific_humidity has {int((vals < 0).sum())} small negative values "
+                f"(down to {vmin:.3g}) in the sampled times; the source's own, kept "
+                "unchanged"
             )
     w_units = normalise_units(str(ds["vertical_velocity"].attrs.get("units", "")))
     if (

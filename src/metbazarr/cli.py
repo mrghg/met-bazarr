@@ -39,6 +39,10 @@ def cmd_build(args: argparse.Namespace) -> int:
             indices = _array_block(n, args.array_block)
         else:
             indices = _time_range(args.times, n)
+        if args.missing_only:
+            missing = set(build.missing_times(recipe))
+            indices = [i for i in indices if i in missing]
+            print(f"[fill] {len(indices)} of the selected times not yet written")
         build.fill(recipe, indices, allow_commit_mismatch=args.allow_commit_mismatch)
     if args.step in ("finish", "all"):
         from metbazarr.formats.glide import FillError
@@ -85,6 +89,11 @@ def main(argv: list[str] | None = None) -> int:
         "missing values by the format's rule, validate (default: all)",
     )
     b.add_argument("--times", help="time indices to fill, START:STOP (default: all)")
+    b.add_argument(
+        "--missing-only",
+        action="store_true",
+        help="fill: only the selected times not yet written (to resume a build)",
+    )
     b.add_argument(
         "--array-block",
         type=int,
