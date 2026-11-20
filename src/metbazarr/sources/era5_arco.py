@@ -198,13 +198,22 @@ class ArcoSource:
     anonymous: bool = True
     #: Variables read at once (13 in all).
     read_threads: int = 13
+    #: Seconds before a Google Cloud request is abandoned and retried (gcsfs
+    #: retries up to 6 times). Without it, a stalled request can hang a fill
+    #: process indefinitely (seen 19-20 Nov 2026: three of eight processes
+    #: stopped until the job's time limit).
+    request_timeout_s: float = 120.0
 
     def __post_init__(self) -> None:
         self._ml: xr.Dataset | None = None
         self._sf: xr.Dataset | None = None
 
     def _open(self, uri: str) -> xr.Dataset:
-        opts = {"token": "anon"} if self.anonymous and uri.startswith("gs://") else None
+        opts = None
+        if uri.startswith("gs://"):
+            opts = {"requests_timeout": self.request_timeout_s}
+            if self.anonymous:
+                opts["token"] = "anon"
         return xr.open_zarr(uri, consolidated=True, chunks=None, storage_options=opts)
 
     @property
