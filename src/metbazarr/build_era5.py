@@ -160,6 +160,9 @@ def create(recipe: Recipe, *, overwrite: bool = False) -> Path:
         flux_accumulation_seconds=arco.ACCUMULATION_SECONDS,
     )
     ds.attrs["recipe"] = Path(recipe.path).name
+    # The full recipe, so the store says exactly how it was built wherever the
+    # recipe file is kept (decision 0008).
+    ds.attrs["recipe_text"] = Path(recipe.path).read_text()
     ds.attrs["domain_box"] = (
         f"lon {recipe.domain.lon_min}..{recipe.domain.lon_max}, "
         f"lat {recipe.domain.lat_min}..{recipe.domain.lat_max}"

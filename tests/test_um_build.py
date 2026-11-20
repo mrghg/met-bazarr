@@ -163,6 +163,7 @@ def test_store_attributes(tmp_path, archive):
     assert "SYNTHETIC" in ds.attrs["source_dataset"]
     assert "theta level 1" in ds.attrs["processing"]
     assert ds.attrs["compression"].startswith("lossless")
+    assert "um_global" in ds.attrs["recipe_text"]
     # format 2.0: the 3-h means are labelled, the snapshots are not
     for name in ("surface_sensible_heat_flux", "friction_velocity"):
         assert ds[name].attrs["cell_methods"] == "time: mean"

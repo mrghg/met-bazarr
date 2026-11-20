@@ -1,9 +1,11 @@
-# GLIDE task B14: Met Office global UM (NAME's UMG_Mk10PT) for the EUR domain.
-# Domain box: GLIDE docs/reference-runs.md §2. Conversion: decision 0003.
+# Example: one day of the Met Office global UM analyses in NAME's met archive
+# (series UMG_Mk10PT, source um_global) over a Europe box, in the glide format.
+# Needs the um extra with mo_pack, and read access to the archive on JASMIN
+# (docs/sources/um.md). Conversion: decision 0003.
 format: glide
-output: /work/scratch-pw5/{user}/met-bazarr/EUR_20190621-20190715_UMG-Mk10.zarr
+output: /work/scratch-pw5/{user}/met-bazarr/EUR_20190108-20190108_UMG-Mk10.zarr
 domain: {name: EUR, lon_min: -30, lon_max: 40, lat_min: 32, lat_max: 72}
-period: {start: "2019-06-21T00:00", end: "2019-07-15T00:00"}
+period: {start: "2019-01-08T00:00", end: "2019-01-08T21:00"}
 source:
   type: um_global
   series: UMG_Mk10PT

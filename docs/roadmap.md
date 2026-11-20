@@ -139,7 +139,7 @@ on both pressure and model levels. GLIDE's task B1 repeats this check through
 its own reader.
 
 **Status (2026-11-19, decision 0006).** Done for model levels: source
-`era5_arco`, recipes in `recipes/era5-arco/`, values bit-identical to GLIDE's
+`era5_arco`, values bit-identical to GLIDE's
 downloader. Not yet: pressure levels and the level cap. u* is derived from the
 surface stresses (GLIDE format 2.0), so it differs from GLIDE's old cubes by
 design.
@@ -208,7 +208,7 @@ met-bazarr without changes; the level mapping is recorded in a decision.
 **Acceptance.** Three recipes and their size estimates; the stores built by
 the human and listed in GLIDE's data inventory.
 
-**Status (2026-11-19).** Recipes written in `recipes/era5-arco/` with the
+**Status (2026-11-19).** Recipes written (now in GLIDE's `validation/met-inputs/`, decision 0008) with the
 windows of GLIDE's validation plan §4 (ETEX-1 and -2, CAPTEX-1 to 7 in five
 windows, ANATEX's scored period, and OKC80 over the full NAM box), on the EUR
 and NAM domains. The development stores GLIDE downloaded for these windows
@@ -263,10 +263,25 @@ GATES store for the same period, variable by variable.
 **Done for GLIDE ahead of the rest (GLIDE task B14, 2026-11-17).** The global
 UM in NAME's met archive (`UMG_Mk10PT`) to the `glide` format, for GLIDE's
 Tier 2 comparison with NAME: `src/metbazarr/sources/um.py`, recipes in
-`recipes/um/`, conversion agreed in
+recipes now in GLIDE's `validation/met-inputs/` (decision 0008), conversion agreed in
 [decision 0003](decisions/0003-um-to-glide-conversion.md). It brought in
 the M0 and M1 pieces it needed (recipe, `metbazarr build` / `validate`, the
 `glide` writer and validator, provenance, synthetic tests).
+
+---
+
+### M9 — One interface for sources
+
+**Needed by:** anyone adding a source (MERRA-2 is next, from collaborators).
+
+- `build.py` is written around the UM, and ERA5 is attached to it as a special
+  case (`build_era5.py`). Give sources one small interface (grid for a box,
+  times, time-invariant fields, `read_time(i)`, variable attributes,
+  provenance strings; `docs/adding-a-source.md`) and make create, fill and
+  finish shared.
+- **Acceptance.** The UM and ERA5 sources both on the interface, with stores
+  value-identical to before (UM build tests in CI; ERA5 against a stored day);
+  a new source needs no change to the build steps.
 
 ---
 
@@ -298,3 +313,12 @@ up; it depends only on M0 and M2.
 - Output from machine-learning weather models (GLIDE roadmap 5d).
 - A format for learned, highly compressed meteorology (GLIDE roadmap 3d),
   once that research produces something to store.
+- **MERRA-2** (NASA), for collaborators' use with GLIDE. See the notes in
+  `docs/adding-a-source.md`: its time-averaged fields are stamped mid-interval
+  and its 3-D and surface fields have different intervals.
+- **A catalogue of processing jobs and stores:** which stores exist, from which
+  recipe and met-bazarr release, where, with which checksums and validation
+  reports, across projects and machines. Decision 0008 keeps project recipes
+  with their projects and puts the recipe in every store; a catalogue would
+  index them (for example a STAC or intake catalogue built from store
+  attributes). To be designed once more than one project uses met-bazarr.

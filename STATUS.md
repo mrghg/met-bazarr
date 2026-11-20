@@ -4,25 +4,22 @@
 > short — it's a handoff note, not a log. Durable decisions belong in
 > `docs/decisions/`; scratch belongs in `notes/` (git-ignored).
 
-_Last updated: 2026-11-19_
+_Last updated: 2026-11-20_
 
 ## Current state
 <!-- Where things stand right now, in a sentence or two. -->
-M0 and M1 minimum are on `main` (PR #1 merged, release v0.1.0): the `glide`
-format writer and validator, the UM source, recipes, `metbazarr build` /
-`validate`, provenance attributes (decision 0002). GLIDE format 2.0 (time
-labels on means and accumulations, [decision 0005](docs/decisions/0005-glide-format-2-time-labels.md))
-is for release v0.2.0.
-Scope: [decision 0001](docs/decisions/0001-scope-and-boundary.md); task list:
+Release **v0.2.0**: the `glide` format 2.0 writer and validator, sources
+`um_global` (Met Office UM, NAME's archive) and `era5_arco` (ERA5 from ARCO;
+`era5_ecmwf` reserved), `metbazarr build` / `validate`, provenance, synthetic
+tests. Generic material only: project recipes and jobs live with their project
+([decision 0008](docs/decisions/0008-project-inputs-live-with-projects.md));
+GLIDE's are in GLIDE's `validation/met-inputs/`. Where to start:
+[README](README.md), [docs/adding-a-source.md](docs/adding-a-source.md),
+[docs/sources/](docs/sources/). Scope:
+[decision 0001](docs/decisions/0001-scope-and-boundary.md); task list:
 [docs/roadmap.md](docs/roadmap.md).
 
-**GLIDE task B14 (UM Mk10 → `glide` format 2.0).** Brief: GLIDE
-`dev/agent/briefs/B14-um-met-conversion.md` (PR #23). Stage 1 assessment in
-`notes/B14-stage1-assessment.md` (git-ignored). Conversion choices agreed by
-Matt: [decision 0003](docs/decisions/0003-um-to-glide-conversion.md);
-GLIDE format 1.0 fill rule (GLIDE `e3df2e3`) and u* correction:
-[decision 0004](docs/decisions/0004-missing-values-and-ustar-note.md).
-**Validation inputs (format 2.0):** four case-library stores built 2026-11-19
+**GLIDE B14 UM validation inputs (format 2.0)**, built with GLIDE's recipes (now in GLIDE `validation/met-inputs/um/`): four case-library stores built 2026-11-19
 from v0.2.0 (commit e7b561d) with `--validation-input`, LOTUS build jobs
 4094162 (EUR-Jan), 4094164 (EUR-Jul), 4094166 (NAM-Jan), 4094168 (NAM-Jul),
 1.7–2.1 h each on one CPU, under 3 GB peak; validator PASS with full scan,
@@ -47,19 +44,18 @@ Scratch files are deleted 28 days after last access.
 
 ## Next actions
 <!-- The concrete next steps, most important first. -->
-- [ ] **B14**: Matt copies the four v0.2.0 stores and `checksums/` to
-      `$GLIDE_DATA/um-mk10/` on Isambard and checks them with the sha256
-      lists; GLIDE's reader test runs there (no torch or GLIDE on JASMIN).
-- [ ] **M0/M1** remainder: anything in the roadmap beyond the B14 minimum.
-- [ ] **ERA5 (M2, M5; decision 0006)**: source `era5_arco` and 16 recipes
-      done (model levels; values bit-identical to GLIDE's downloader; u\*
-      from the surface stresses, confirmed by Matt, decision 0006). Next:
-      build the validation stores from a tag with
-      `scripts/isambard/build_era5.sh`. Still to do: pressure levels
-      and the level cap (M2); ECMWF-direct ERA5 (M2b, waits for MARS access).
-- [ ] **M3** — check which ERA5 ensemble (EDA) variables the CDS offers as
-      ensemble members, then the column extraction for GLIDE's seven standard
-      cases.
+- [ ] **M9** — one interface for sources (`build.py` is UM-shaped; ERA5 is a
+      special case). Needed before MERRA-2.
+- [ ] **MERRA-2** — collaborators; start from `docs/adding-a-source.md`, whose
+      MERRA-2 notes need checking against the file specification.
+- [ ] **GLIDE builds from v0.2.0** (recipes and jobs in GLIDE): Matt copies
+      the four UM stores above and `checksums/` to `$GLIDE_DATA/um-mk10/` on
+      Isambard, checks them with the sha256 lists, and GLIDE's reader test runs
+      there; the ERA5 validation stores are built on Isambard.
+- [ ] **M2** remainder: ERA5 pressure levels and the level cap; **M2b**
+      ECMWF-direct ERA5 (waits for MARS access).
+- [ ] **M3** — which ERA5 ensemble (EDA) variables the CDS offers as ensemble
+      members, then the column extraction for GLIDE's seven standard cases.
 
 ## Open questions / blockers
 <!-- Anything undecided or waiting on someone. -->

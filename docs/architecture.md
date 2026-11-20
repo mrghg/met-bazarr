@@ -16,6 +16,8 @@
 │   ├── architecture.md
 │   ├── security.md
 │   ├── roadmap.md            # Task list: who needs what, and in what order
+│   ├── adding-a-source.md    # How to add a source (start here for a new archive)
+│   ├── sources/              # One page per source (era5-arco.md, um.md)
 │   └── decisions/            # Dated, immutable decision records (ADRs)
 │       ├── README.md         #   one-line index
 │       └── 0000-template.md
@@ -25,12 +27,13 @@
 │   └── metbazarr/            # Importable package
 │       ├── cli.py            #   `metbazarr build` / `metbazarr validate`
 │       ├── recipe.py         #   YAML recipe -> Recipe
-│       ├── build.py          #   create / fill / finish a store
+│       ├── build.py          #   create / fill / finish a store (UM; hands ERA5 to build_era5.py)
+│       ├── build_era5.py     #   create / fill for ERA5 sources
 │       ├── provenance.py     #   version, commit, time
-│       ├── formats/          #   one module per output format (glide.py)
-│       └── sources/          #   one module per source (um.py)
-├── scripts/                  # Runnable entry points (check_um_store.py; lotus/ job scripts)
-├── recipes/                  # One YAML file per store (recipes/um/ for the Met Office UM)
+│       ├── formats/          #   one module per output format (glide.py: writer + validator)
+│       └── sources/          #   one module per source (um.py, era5_arco.py, era5_ecmwf.py)
+├── examples/recipes/         # One example recipe per source; project recipes live with the project (decision 0008)
+├── scripts/                  # Helpers (the README images)
 ├── tests/                    # pytest, on synthetic data only
 ├── notebooks/                # Exploratory Jupyter notebooks
 ├── data/                     # Raw/large data (git-ignored)
