@@ -52,53 +52,17 @@ The tests use small synthetic inputs only: never real (or licensed) data. The
 UM tests write synthetic PP files, which need iris but not `mo_pack`; they are
 skipped if iris is missing.
 
-## ERA5 from ARCO on Isambard AI
+## Optional extras, by source
+
+| Extra | For | Notes |
+| --- | --- | --- |
+| `arco` | ERA5 from the ARCO stores on Google Cloud | `gcsfs`; anonymous access, no account needed. See [sources/era5-arco.md](sources/era5-arco.md). |
+| `um` | Met Office UM PP files | `iris`, which needs the `udunits2` C library; WGDOS-packed files also need `mo_pack`, which is on conda-forge only. See [sources/um.md](sources/um.md). |
 
 ```bash
-uv sync --extra arco                      # gcsfs, for the public gs:// stores
-export METBAZARR_OUT=/projects/<project>/glide-data/era5-arco
-.venv/bin/metbazarr build recipes/era5-arco/EUR-day-20190108.yaml --step plan
-sbatch scripts/isambard/build_era5.sh recipes/era5-arco/EUR-Jan.yaml recipes/era5-arco/NAM-Jan.yaml
+uv sync --extra arco
 ```
 
-Only a person submits jobs; on Isambard AI, downloads must not run on the
-login node. The job script creates each store, fills its times with `NPROC`
-(default 8) processes at once, then runs `finish`; add
-`FINISH_FLAGS=--validation-input` for a store built from a tagged release.
-ERA5 stores are named `<DOMAIN>_<start YYYYMMDD>-<end YYYYMMDD>_ERA5-ARCO.zarr`.
-`scripts/check_era5_equivalence.py NEW.zarr OLD.zarr` compares a store with
-one written by GLIDE's own downloader.
-
-## Met Office UM on JASMIN
-
-Reading the Met Office's WGDOS-packed PP files needs `iris` **and** `mo_pack`.
-`mo_pack` is published on conda-forge only, so `uv` cannot install it. On
-JASMIN, build a second environment on JASMIN's `jaspy` Python, which has
-`mo_pack`, and let `uv` install everything else into it:
-
-```bash
-JP=/apps/jasmin/jaspy/miniforge_envs/jaspy3.12/mf3-25.3.0-3/envs/jasml3.12-mf3-25.3.0-3-v20261105/bin/python
-uv venv --python "$JP" --system-site-packages .venv-jaspy
-UV_PROJECT_ENVIRONMENT=.venv-jaspy uv sync --python "$JP" --extra um
-.venv-jaspy/bin/metbazarr --help
-```
-
-`--python` matters: without it `uv sync` follows `.python-version` and
-replaces the environment with one that cannot see `mo_pack`. Reading the NAME
-met archive needs membership of the `gws_name` group.
-
-Build a store from a recipe (`recipes/`), interactively or as a LOTUS2 job:
-
-```bash
-.venv-jaspy/bin/metbazarr build recipes/um/EUR-day-20190108.yaml --step plan
-.venv-jaspy/bin/metbazarr build recipes/um/EUR-day-20190108.yaml
-sbatch --account=<account> scripts/lotus/build_store.sbatch recipes/um/EUR-Jan.yaml
-.venv-jaspy/bin/python scripts/check_um_store.py recipes/um/EUR-day-20190108.yaml --times 0 4
-```
-
-UM stores are named `<DOMAIN>_<start YYYYMMDD>-<end YYYYMMDD>_UMG-Mk10.zarr`,
-where the dates are those of the first and last times in the store, e.g.
-`EUR_20181222-20190115_UMG-Mk10.zarr`.
-
-Met Office data, and anything derived from it, never goes into the
-repository, a test or an issue.
+Large builds belong on compute nodes, not login nodes. Recipes and job scripts
+for a particular project (for example GLIDE's validation inputs) live with that
+project, not here: see [decision 0008](decisions/0008-project-inputs-live-with-projects.md).

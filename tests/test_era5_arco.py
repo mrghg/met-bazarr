@@ -139,6 +139,7 @@ def test_labels_and_attributes(tmp_path, arco):
     assert ds.attrs["glide_flux_accumulation_seconds"] == "3600"
     assert "glide_flux_averaging_seconds" not in ds.attrs
     assert ds.attrs["source_dataset"].startswith("ERA5 hourly reanalysis (ECMWF), ARCO")
+    assert ds.attrs["recipe_text"] == recipe.path.read_text()
     shf, ustar = ds["surface_sensible_heat_flux"], ds["friction_velocity"]
     assert shf.attrs["cell_methods"] == "time: sum"
     assert shf.attrs["units"] == "J m**-2"

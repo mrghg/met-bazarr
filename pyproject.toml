@@ -1,6 +1,6 @@
 [project]
 name = "metbazarr"
-version = "0.2.0"
+version = "0.3.0"
 description = "Prepare meteorology as compressed Zarr stores for atmospheric transport models."
 readme = "README.md"
 requires-python = ">=3.11"

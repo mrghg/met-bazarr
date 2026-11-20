@@ -1,6 +1,7 @@
 """Recipes: a YAML file that describes one store.
 
-Example (``recipes/um/EUR-Jan.yaml``)::
+Example (``examples/recipes/um-day.yaml`` has a full one; the recipes for a
+particular project, such as GLIDE's validation inputs, live with that project)::
 
     format: glide
     output: /work/scratch-pw5/USER/met-bazarr/EUR_20181222-20190115_UMG-Mk10.zarr
