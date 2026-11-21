@@ -11,6 +11,8 @@ Recipe ``source`` keys::
       surface_store: gs://...       # optional; ARCO's by default
       anonymous: true               # optional
       request_timeout_s: 120        # optional; seconds before a request is retried
+      read_attempts: 5              # optional; tries at reading one time
+      retry_backoff_s: 60           # optional; pause before a retry, doubling
 
 The period must be whole hours (ERA5 is hourly).
 """
@@ -58,6 +60,8 @@ def source_from(recipe: Recipe) -> arco.ArcoSource:
         surface_store=src.get("surface_store", arco.SURFACE_STORE),
         anonymous=bool(src.get("anonymous", True)),
         request_timeout_s=float(src.get("request_timeout_s", 120.0)),
+        read_attempts=int(src.get("read_attempts", 5)),
+        retry_backoff_s=float(src.get("retry_backoff_s", 60.0)),
     )
 
 
@@ -210,7 +214,7 @@ def fill(
     for i in indices:
         t0 = _time.time()
         when = p.times[i]
-        fields = p.source.read_time(when, p.crop)
+        fields = p.source.read_time_retrying(when, p.crop)
         out = xr.Dataset(
             {
                 name: (DIMS_3D if arr.ndim == 3 else DIMS_2D, arr[None])

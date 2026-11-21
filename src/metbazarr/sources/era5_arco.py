@@ -35,6 +35,8 @@ Conversion (GLIDE format 2.0, met-bazarr decision 0006):
 from __future__ import annotations
 
 import socket
+import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
@@ -93,6 +95,29 @@ PROCESSING = [
     "Computed in float64 where derived, stored as float32. No interpolation in time "
     "or space.",
 ]
+
+
+def _transient_errors() -> tuple[type[BaseException], ...]:
+    """Exceptions that mean the network, not the data: worth another try."""
+    errors: list[type[BaseException]] = [TimeoutError, ConnectionError, OSError]
+    try:
+        import aiohttp
+
+        errors.append(aiohttp.ClientError)
+    except ImportError:
+        pass
+    try:
+        from fsspec.exceptions import FSTimeoutError
+
+        errors.append(FSTimeoutError)
+    except ImportError:
+        pass
+    return tuple(errors)
+
+
+_TRANSIENT = _transient_errors()
+#: OSErrors that another try will not fix.
+_PERMANENT = (FileNotFoundError, PermissionError, IsADirectoryError, NotADirectoryError)
 
 
 class Era5ArcoError(RuntimeError):
@@ -203,6 +228,12 @@ class ArcoSource:
     #: process indefinitely (seen 19-20 Nov 2026: three of eight processes
     #: stopped until the job's time limit).
     request_timeout_s: float = 120.0
+    #: Attempts at reading one time before giving up (`read_time_retrying`).
+    #: With 8 processes in each of two jobs, single requests still outlasted
+    #: the timeout and gcsfs's own retries (20 Nov 2026), failing 7 of 16 stores.
+    read_attempts: int = 5
+    #: Pause before the second attempt, doubled for each further one.
+    retry_backoff_s: float = 60.0
 
     def __post_init__(self) -> None:
         self._ml: xr.Dataset | None = None
@@ -290,6 +321,36 @@ class ArcoSource:
             out["specific_humidity"][lowest],
         )
         return {k: np.asarray(v, dtype=np.float32) for k, v in out.items()}
+
+    def read_time_retrying(
+        self,
+        when: datetime,
+        crop: Crop,
+        *,
+        sleep: Callable[[float], None] = time.sleep,
+    ) -> dict[str, np.ndarray]:
+        """`read_time`, retried on transient network failures.
+
+        A timeout or connection error on any variable fails the whole time, which
+        is read again after a pause (``retry_backoff_s``, doubling), up to
+        ``read_attempts`` times. Any other error is raised at once: only network
+        trouble is retried, so a real fault is not hidden.
+        """
+        pause = self.retry_backoff_s
+        for attempt in range(1, self.read_attempts + 1):
+            try:
+                return self.read_time(when, crop)
+            except _TRANSIENT as exc:
+                if isinstance(exc, _PERMANENT) or attempt == self.read_attempts:
+                    raise
+                print(
+                    f"[read] {when:%Y-%m-%d %H:%M} attempt {attempt}/{self.read_attempts} "
+                    f"failed ({type(exc).__name__}); retrying in {pause:.0f} s",
+                    flush=True,
+                )
+                sleep(pause)
+                pause *= 2
+        raise AssertionError("unreachable")
 
     def source_dataset(self, n_levels: int) -> str:
         return (

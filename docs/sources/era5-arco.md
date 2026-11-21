@@ -53,8 +53,13 @@ The period is in whole hours. Example: [`examples/recipes/era5-arco-day.yaml`](.
 - **Small negative humidities** are ERA5's own (its numerics, mostly in very dry
   air): a few per million values, down to about −3×10⁻⁵ kg/kg. They are kept
   unchanged; the validator warns down to −10⁻⁴ and fails below.
-- **Requests can stall.** Each Google Cloud request times out after
+- **Requests can stall or crawl.** Each Google Cloud request times out after
   `request_timeout_s` (default 120 s) and is retried by gcsfs. Without this, three
-  of eight fill processes once stalled until their job's time limit. To resume a
-  build, fill only what is missing:
+  of eight fill processes once stalled until their job's time limit. Under heavy
+  load (two jobs of 8 processes), single requests still outlasted the timeout and
+  gcsfs's retries, failing 7 of 16 stores (20 Nov 2026), so a time that fails on
+  a timeout or connection error is read again after a pause: `read_attempts`
+  (default 5), `retry_backoff_s` (default 60 s, doubling). Other errors, and
+  missing or unreadable files, are not retried. Fewer processes also help. To
+  resume a build, fill only what is missing:
   `metbazarr build <recipe> --step fill --missing-only`.
