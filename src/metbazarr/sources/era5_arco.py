@@ -59,13 +59,24 @@ MODEL_LEVEL_VARS = {
     "specific_humidity": "specific_humidity",
     "geopotential": "geopotential",
 }
+#: The IFS's dry-air gas constant and virtual-temperature coefficient
+#: (Rv/Rd - 1), used for the surface geopotential derivation (decision 0009).
+R_DRY_AIR_IFS = 287.0597
+TV_COEFF_IFS = 0.6078
 #: GLIDE variable -> ARCO variable, surface store (copied unchanged).
 SURFACE_VARS = {
     "boundary_layer_height": "boundary_layer_height",
     "surface_pressure": "surface_pressure",
-    "geopotential_at_surface": "geopotential_at_surface",
     "surface_sensible_heat_flux": "surface_sensible_heat_flux",
 }
+#: ERA5's lowest model level, and b at the half level above it (ECMWF, "L137
+#: model level definitions"; a = 0 at both half levels around it, b = 1 at the
+#: surface). The IFS places full level 137 at
+#: z_137 = z_s + alpha * R_d * Tv_137, alpha = 1 - b/(1 - b) * ln(1/b),
+#: independent of surface pressure (decision 0009).
+LOWEST_LEVEL = 137
+B_HALF_136 = 0.997630
+ALPHA_LOWEST = 1.0 - B_HALF_136 / (1.0 - B_HALF_136) * float(np.log(1.0 / B_HALF_136))
 #: ARCO surface stresses, hourly accumulations (N m-2 s), for u*.
 STRESS_VARS = (
     "eastward_turbulent_surface_stress",
@@ -83,7 +94,13 @@ PROCESSING = [
     "box crosses 0 E, then given in -180..180 and ascending.",
     "u_component_of_wind, v_component_of_wind, vertical_velocity (omega, Pa s-1), "
     "temperature, specific_humidity, geopotential (time-varying), "
-    "boundary_layer_height, surface_pressure, geopotential_at_surface: unchanged.",
+    "boundary_layer_height, surface_pressure: unchanged.",
+    "geopotential_at_surface = geopotential at hybrid 137 - alpha * 287.0597 * T * "
+    "(1 + 0.6078 q), with T, q at hybrid 137 and alpha = 1 - b/(1-b) ln(1/b), "
+    "b = 0.997630 (ERA5 L137): the IFS's own relation, so the surface lies under "
+    "the model levels. ARCO's geopotential_at_surface is not used: it disagrees "
+    "with ARCO's model-level geopotential by up to ~130 m in steep terrain "
+    "(met-bazarr decision 0009).",
     "surface_sensible_heat_flux: ERA5's accumulation over the hour ending at the "
     "timestamp (J m-2, positive down), unchanged; labelled cell_methods 'time: sum', "
     "glide_period_seconds 3600.",
@@ -193,6 +210,21 @@ def _take(da: xr.DataArray, crop: Crop) -> np.ndarray:
     return parts[0] if len(parts) == 1 else np.concatenate(parts, axis=-1)
 
 
+def surface_geopotential_from_lowest_level(
+    z_lowest: np.ndarray, t_lowest: np.ndarray, q_lowest: np.ndarray
+) -> np.ndarray:
+    """Surface geopotential (m2 s-2) consistent with ERA5's model levels.
+
+    The IFS's hydrostatic relation for its lowest full level (hybrid 137):
+    z_137 = z_s + ALPHA_LOWEST * R_d * Tv_137, so the level sits about 10 m above
+    the ground (9.8 m at 280 K). Decision 0009.
+    """
+    tv = np.asarray(t_lowest, np.float64) * (
+        1.0 + TV_COEFF_IFS * np.asarray(q_lowest, np.float64)
+    )
+    return np.asarray(z_lowest, np.float64) - ALPHA_LOWEST * R_DRY_AIR_IFS * tv
+
+
 def friction_velocity(
     ewss: np.ndarray,
     nsss: np.ndarray,
@@ -290,6 +322,7 @@ class ArcoSource:
             for g, a in SURFACE_VARS.items()
         }
         out["friction_velocity"] = "m s**-1"
+        out["geopotential_at_surface"] = "m**2 s**-2"
         return out
 
     def read_time(self, when: datetime, crop: Crop) -> dict[str, np.ndarray]:
@@ -312,7 +345,18 @@ class ArcoSource:
             }
             out = {k: f.result() for k, f in futures.items()}
         stress = [out.pop(a) for a in STRESS_VARS]
-        lowest = int(np.argmax(self.model_levels[LEVEL].values))  # hybrid 137
+        levels = self.model_levels[LEVEL].values
+        lowest = int(np.argmax(levels))
+        if int(levels[lowest]) != LOWEST_LEVEL:
+            raise ValueError(
+                f"lowest model level is {levels[lowest]}, not ERA5's {LOWEST_LEVEL}: "
+                "the surface geopotential derivation (decision 0009) needs it"
+            )
+        out["geopotential_at_surface"] = surface_geopotential_from_lowest_level(
+            out["geopotential"][lowest],
+            out["temperature"][lowest],
+            out["specific_humidity"][lowest],
+        )
         out["friction_velocity"] = friction_velocity(
             stress[0],
             stress[1],

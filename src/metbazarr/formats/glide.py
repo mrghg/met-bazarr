@@ -179,6 +179,10 @@ PLAUSIBLE = {
 #: error (geopotential height stored as geopotential, or mixed units, puts it
 #: thousands of metres below); less is a warning, as in ARCO's ERA5.
 BELOW_GROUND_ERROR_M = 500.0
+#: For validation inputs, model levels and the surface must describe the same
+#: ground (GLIDE docs/met_schema.md): no model level more than this below
+#: geopotential_at_surface (decision 0009).
+BELOW_GROUND_VALIDATION_M = 1.0
 
 
 def normalise_units(units: str) -> str:
@@ -277,6 +281,14 @@ def validate(
             f"producer_commit is {commit!r}: validation inputs come from a clean, "
             "tagged release"
         )
+    if validation_input:
+        for rep in json.loads(str(attrs.get("glide_repairs", "[]")) or "[]"):
+            rc = str(rep.get("producer_commit", ""))
+            if rc.endswith("-dirty") or rc in ("", "unknown"):
+                err(
+                    f"repair {rep.get('repair')!r} was made by commit {rc!r}: "
+                    "validation inputs are repaired by a clean, tagged release"
+                )
 
     # --- coordinates ------------------------------------------------------
     for coord in (TIME, LAT, LON):
@@ -415,7 +427,7 @@ def validate(
     _check_filled(ds, lev, report)
 
     # --- physical plausibility on a sample of times -----------------------
-    _check_physics(ds, lev, vcoord, report)
+    _check_physics(ds, lev, vcoord, report, validation_input=validation_input)
 
     # --- every value finite ----------------------------------------------
     if full_scan:
@@ -531,7 +543,12 @@ def _check_periods(
 
 
 def _check_physics(
-    ds: xr.Dataset, lev: str, vcoord: str, report: ValidationReport
+    ds: xr.Dataset,
+    lev: str,
+    vcoord: str,
+    report: ValidationReport,
+    *,
+    validation_input: bool = False,
 ) -> None:
     err, warn = report.errors.append, report.warnings.append
     times = _sample_times(ds.sizes[TIME])
@@ -601,15 +618,19 @@ def _check_physics(
                 "lowest model level lies below geopotential_at_surface "
                 f"(by up to {deepest:.0f} m): mixed units?"
             )
-        elif deepest > 1.0:
-            # ARCO's ERA5 does this over high ground (up to ~125 m in 3% of NAM
-            # cells): its model-level and surface geopotentials are not exactly
-            # consistent. GLIDE excludes sub-surface levels, so it is reported.
-            report.warnings.append(
+        elif deepest > BELOW_GROUND_VALIDATION_M:
+            # ARCO's own surface geopotential does this over high ground (up to
+            # ~130 m): it disagrees with ARCO's model-level geopotential. GLIDE
+            # takes heights above ground from the two, so its terrain-following
+            # grid would be shifted; met-bazarr's ERA5 stores derive a consistent
+            # surface geopotential instead (decision 0009).
+            msg = (
                 "lowest model level lies below geopotential_at_surface in "
-                f"{float(np.mean(gap_m < -1.0)):.1%} of columns (by up to "
-                f"{deepest:.0f} m); GLIDE excludes levels below the surface"
+                f"{float(np.mean(gap_m < -BELOW_GROUND_VALIDATION_M)):.1%} of columns "
+                f"(by up to {deepest:.0f} m): the level and surface geopotentials "
+                "do not describe the same ground"
             )
+            (err if validation_input else warn)(msg)
         # Top of the model must reach 20 km above the ground everywhere.
         top_agl = (stacked[-1] - phi_s) / GRAVITY_M_S2
         if np.nanmin(top_agl) < 20_000.0:

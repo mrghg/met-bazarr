@@ -74,6 +74,23 @@ def cmd_validate(args: argparse.Namespace) -> int:
     return 0 if report.ok else 1
 
 
+def cmd_repair(args: argparse.Namespace) -> int:
+    import json
+
+    from metbazarr import repair
+
+    fixes = {repair.ERA5_SURFACE_GEOPOTENTIAL: repair.repair_era5_surface_geopotential}
+    try:
+        result = fixes[args.fix](args.store, dry_run=args.dry_run)
+    except ValueError as exc:
+        print(f"FAIL: {exc}")
+        return 1
+    print(json.dumps(result, indent=2))
+    if args.dry_run:
+        print("dry run: nothing written")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="metbazarr", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -125,6 +142,18 @@ def main(argv: list[str] | None = None) -> int:
         help="apply the rules for GLIDE validation inputs",
     )
     v.set_defaults(func=cmd_validate)
+
+    r = sub.add_parser(
+        "repair",
+        help="recompute a variable of a built store from its own fields, recorded "
+        "in the store (decision 0009)",
+    )
+    r.add_argument("store")
+    r.add_argument("--fix", required=True, choices=("era5-surface-geopotential",))
+    r.add_argument(
+        "--dry-run", action="store_true", help="report the change, write nothing"
+    )
+    r.set_defaults(func=cmd_repair)
 
     args = parser.parse_args(argv)
     return args.func(args)

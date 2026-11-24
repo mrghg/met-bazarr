@@ -21,3 +21,4 @@ Copy [`0000-template.md`](0000-template.md) to start a new record:
 | [0006](0006-era5-arco-to-glide.md) | 2026-11-19 | ERA5 from ARCO to GLIDE format 2.0; ECMWF-direct ERA5 kept separate | Accepted |
 | [0007](0007-um-surface-stress-form-drag.md) | 2026-11-19 | The UM surface stresses include sub-grid orographic form drag (evidence) | Accepted |
 | [0008](0008-project-inputs-live-with-projects.md) | 2026-11-20 | Project-specific recipes and jobs live with the project; stores carry their recipe | Accepted |
+| [0009](0009-era5-consistent-surface-geopotential.md) | 2026-11-24 | ERA5 stores carry a surface geopotential consistent with their model levels; built stores are repaired in place | Accepted |
