@@ -53,6 +53,19 @@ A day of ERA5 over Europe is a few GB and takes several minutes; run real
 builds on a compute node. Each store records its full recipe, the met-bazarr
 version and commit, and every processing step in its attributes.
 
+**Repairs.** A store built by an earlier release can be brought up to a later
+rule by recomputing a variable from its own fields, with no download; the repair
+is recorded in the store (`glide_repairs`, `processing`):
+
+```bash
+.venv/bin/metbazarr repair <store> --fix era5-surface-geopotential --dry-run   # report the change
+.venv/bin/metbazarr repair <store> --fix era5-surface-geopotential             # write it
+```
+
+`era5-surface-geopotential` gives ERA5 stores built before v0.4.0 a surface
+geopotential consistent with their model levels
+([decision 0009](docs/decisions/0009-era5-consistent-surface-geopotential.md)).
+
 **Recipes for a project's own stores live with that project**, not here
 ([decision 0008](docs/decisions/0008-project-inputs-live-with-projects.md)):
 GLIDE's validation inputs are in GLIDE's

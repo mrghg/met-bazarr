@@ -19,7 +19,9 @@ STEP = 5.0
 LAT = np.arange(90.0, -90.0 - 1e-9, -STEP).astype(np.float32)
 LON = np.arange(0.0, 360.0, STEP).astype(np.float32)
 NZ = 6
-HYBRID = np.arange(1, NZ + 1, dtype=np.float32)
+#: Level numbers, top first; the lowest is ERA5's 137, which the surface
+#: geopotential derivation requires (met-bazarr decision 0009).
+HYBRID = np.array([1, 50, 90, 114, 130, 137], dtype=np.float32)
 #: Height (m) of each hybrid level above the ground, top first.
 Z_AGL = np.array([30000.0, 12000.0, 5000.0, 1500.0, 300.0, 10.0])
 TIMES = np.array("2019-01-08T00", dtype="datetime64[ns]") + np.arange(

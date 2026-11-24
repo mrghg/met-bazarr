@@ -4,11 +4,15 @@
 > short — it's a handoff note, not a log. Durable decisions belong in
 > `docs/decisions/`; scratch belongs in `notes/` (git-ignored).
 
-_Last updated: 2026-11-20_
+_Last updated: 2026-11-24_
 
 ## Current state
 <!-- Where things stand right now, in a sentence or two. -->
-Release **v0.2.0**: the `glide` format 2.0 writer and validator, sources
+Release **v0.4.0** (pending tag): ERA5 stores derive a surface geopotential
+consistent with their model levels, `metbazarr repair` brings built stores up to
+it, and the validator refuses validation inputs whose levels lie below the
+surface ([decision 0009](docs/decisions/0009-era5-consistent-surface-geopotential.md));
+v0.3.1 added read retries. Since v0.2.0: the `glide` format 2.0 writer and validator, sources
 `um_global` (Met Office UM, NAME's archive) and `era5_arco` (ERA5 from ARCO;
 `era5_ecmwf` reserved), `metbazarr build` / `validate`, provenance, synthetic
 tests. Generic material only: project recipes and jobs live with their project
