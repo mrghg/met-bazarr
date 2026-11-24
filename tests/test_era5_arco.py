@@ -5,6 +5,7 @@ from the stresses (not ``zust``) by the formula in decision 0006; the heat flux
 and u* must carry their format 2.0 labels; and the store must validate.
 """
 
+import datetime as dt
 import json
 
 import numpy as np
@@ -231,3 +232,66 @@ def test_fill_missing_only_resumes(tmp_path, arco):
     assert build.missing_times(recipe) == [3, 4, 5]
     assert main(["build", str(recipe.path), "--step", "fill", "--missing-only"]) == 0
     assert build.missing_times(recipe) == []
+
+
+def _flaky_source(failures, exc=TimeoutError):
+    src = era5_arco.ArcoSource(read_attempts=3, retry_backoff_s=10.0)
+    calls = {"n": 0}
+
+    def read_time(when, crop):
+        calls["n"] += 1
+        if calls["n"] <= failures:
+            raise exc("simulated")
+        return {"ok": np.zeros(1, np.float32)}
+
+    src.read_time = read_time
+    return src, calls
+
+
+def test_read_retries_transient_failures_with_backoff():
+    src, calls = _flaky_source(failures=2)
+    pauses = []
+    out = src.read_time_retrying(dt.datetime(2019, 1, 8), None, sleep=pauses.append)
+    assert "ok" in out and calls["n"] == 3
+    assert pauses == [10.0, 20.0]  # doubling
+
+
+def test_read_gives_up_after_the_last_attempt():
+    src, calls = _flaky_source(failures=5)
+    with pytest.raises(TimeoutError):
+        src.read_time_retrying(dt.datetime(2019, 1, 8), None, sleep=lambda s: None)
+    assert calls["n"] == 3
+
+
+def test_read_does_not_retry_permanent_or_other_errors():
+    for exc in (FileNotFoundError, ValueError):
+        src, calls = _flaky_source(failures=1, exc=exc)
+        with pytest.raises(exc):
+            src.read_time_retrying(dt.datetime(2019, 1, 8), None, sleep=lambda s: None)
+        assert calls["n"] == 1
+
+
+def test_retry_settings_from_recipe(tmp_path, arco):
+    import yaml as _yaml
+
+    ml, sf = arco
+    path = tmp_path / "r.yaml"
+    path.write_text(
+        _yaml.safe_dump(
+            {
+                "format": "glide",
+                "output": str(tmp_path / "s.zarr"),
+                "domain": BOX_NAM,
+                "period": {"start": START, "end": END},
+                "source": {
+                    "type": "era5_arco",
+                    "model_level_store": str(ml),
+                    "surface_store": str(sf),
+                    "read_attempts": 7,
+                    "retry_backoff_s": 5,
+                },
+            }
+        )
+    )
+    src = build_era5.source_from(load_recipe(path))
+    assert (src.read_attempts, src.retry_backoff_s) == (7, 5.0)
